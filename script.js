@@ -281,7 +281,7 @@ function renderizar_pantalla_configuracion() {
         <section class="screen screen-config">
             <div class="hero-copy">
                 <span class="eyebrow"><span class="eyebrow-line"></span> TU RED, EN PERSPECTIVA</span>
-                <h1 class="hero-title"> <br /><em>conectado.</em></h1>
+                <h1 class="hero-title">Todo está<br /><em>conectado.</em></h1>
                 <p class="hero-sub">Descubre los grupos que forman tus conexiones.</p>
             </div>
 

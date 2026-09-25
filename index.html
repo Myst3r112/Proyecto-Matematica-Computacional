@@ -1,4 +1,4 @@
-<!doctype html>
+x<!doctype html>
 <html lang="es">
     <head>
         <meta charset="UTF-8" />
@@ -16,26 +16,22 @@
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-        <div class="topbar">
+        <header class="topbar">
             <div class="brand">
-                <div class="brand-mark">🕸️</div>
-                <div>
-                    <div class="brand-name">Vínculo</div>
-                    <div class="brand-tag">
-                        Comunidades ocultas en tu red social
-                    </div>
-                </div>
+                <div class="brand-mark" aria-hidden="true">✳</div>
+                <div class="brand-name">vínculo<span>.</span></div>
             </div>
             <div class="badge-course">
-                Matemática Computacional · Componentes conexas
+                <span class="status-dot"></span>
+                EXPLORADOR DE REDES
             </div>
-        </div>
+        </header>
 
-        <main id="app"></main>
+        <main id="app" aria-live="polite"></main>
 
         <footer class="appfoot">
-            Proyecto académico · Algoritmo de componentes conexas aplicado a
-            redes sociales
+            <span class="footer-mark">✳</span> Una forma simple de encontrar lo
+            que nos conecta.
         </footer>
 
         <script src="script.js"></script>

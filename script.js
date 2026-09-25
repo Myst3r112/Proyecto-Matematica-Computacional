@@ -1,8 +1,4 @@
-﻿/*
-======================================================================
-    DATOS BASE
-====================================================================== 
-*/
+﻿/* Datos base */
 const nombres_disponibles = [
     "Amir",
     "Beto",
@@ -60,11 +56,7 @@ function crear_estado_inicial() {
     };
 }
 
-/*
-======================================================================
-    UTILIDADES DE GRAFOS Y MATRICES
-====================================================================== 
-*/
+/* Operaciones con grafos y matrices */
 function crear_matriz_vacia(n) {
     return Array.from({ length: n }, () => Array(n).fill(0));
 }
@@ -188,9 +180,7 @@ function crear_mapa_colores_componentes(components, n) {
     return map;
 }
 
-/* ======================================================================
-   RENDER: GRAFO SVG
-   ====================================================================== */
+/* Dibuja el grafo en SVG */
 function renderizar_grafo_svg(opciones) {
     const {
         n,
@@ -242,9 +232,7 @@ function renderizar_grafo_svg(opciones) {
   </svg>`;
 }
 
-/* ======================================================================
-   RENDER: TABLA DE MATRIZ
-   ====================================================================== */
+/* Construye una tabla para la matriz */
 function renderizar_tabla_matriz(
     matrix,
     etiquetas_filas,
@@ -285,69 +273,76 @@ function hexadecimal_a_rgba(hex, a) {
     return `rgba(${r},${g},${b},${a})`;
 }
 
-/* 
-======================================================================
-   PANTALLA: CONFIGURACIÓN
-====================================================================== 
-*/
+/* Pantalla de configuración */
 function renderizar_pantalla_configuracion() {
     const n = estado.n;
     const porcentaje_relleno = ((n - 4) / (12 - 4)) * 100;
     return `
-  <section class="screen">
-    <h1 class="hero-title">Descubre las comunidades escondidas en tu red social</h1>
-    <p class="hero-sub">Crea una pequeña red de usuarios, conéctalos como amigos y observa —paso a paso— cómo el algoritmo de componentes conexas separa la red en comunidades.</p>
-
-    <div class="panel">
-      <div class="config-grid">
-        <div>
-          <h2 class="section-title">1. ¿Cuántos usuarios tendrá tu red?</h2>
-          <p class="section-sub">Elige entre 4 y 12 usuarios.</p>
-          <div class="count-row">
-            <div class="count-display">${n}</div>
-            <div class="count-slider">
-              <input type="range" min="4" max="12" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
+        <section class="screen screen-config">
+            <div class="hero-copy">
+                <span class="eyebrow"><span class="eyebrow-line"></span> TU RED, EN PERSPECTIVA</span>
+                <h1 class="hero-title">Todo está<br /><em>conectado.</em></h1>
+                <p class="hero-sub">Descubre los grupos que forman tus conexiones.</p>
             </div>
-          </div>
-          <div class="count-caption">usuarios en la red</div>
 
-          <h2 class="section-title">2. ¿Cómo se conectan?</h2>
-          <p class="section-sub">Puedes armar tú mismo las amistades o dejar que la red se genere sola.</p>
-          <div class="pill-group">
-            <div class="pill ${estado.modo === "manual" ? "active" : ""}" data-action="set-mode" data-value="manual">
-              <div class="pill-title">🖊️ Manual</div>
-              <div class="pill-desc">Tú decides quién es amigo de quién.</div>
+            <div class="panel config-panel">
+                <div class="config-grid">
+                    <div class="config-controls">
+                        <div class="section-kicker"><span>01</span> TAMAÑO DE LA RED</div>
+                        <div class="count-row">
+                            <div class="count-display">${n}</div>
+                            <div class="count-slider">
+                                <input aria-label="Cantidad de personas" type="range" min="4" max="12" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
+                                <div class="range-labels"><span>4 personas</span><span>12 personas</span></div>
+                            </div>
+                        </div>
+
+                        <div class="section-kicker mode-kicker"><span>02</span> ¿CÓMO EMPEZAMOS?</div>
+                        <div class="pill-group">
+                            <button type="button" class="pill ${estado.modo === "aleatorio" ? "active" : ""}" data-action="set-mode" data-value="aleatorio" aria-pressed="${estado.modo === "aleatorio"}">
+                                <span class="pill-icon">✦</span>
+                                <span class="pill-copy"><span class="pill-title">Sorpréndeme</span><span class="pill-desc">Crear al azar</span></span>
+                                <span class="pill-check">✓</span>
+                            </button>
+                            <button type="button" class="pill ${estado.modo === "manual" ? "active" : ""}" data-action="set-mode" data-value="manual" aria-pressed="${estado.modo === "manual"}">
+                                <span class="pill-icon">⌘</span>
+                                <span class="pill-copy"><span class="pill-title">Yo decido</span><span class="pill-desc">Dibujar mi red</span></span>
+                                <span class="pill-check">✓</span>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary start-button" data-action="start">
+                            <span>Explorar mi red</span><span class="button-arrow">↗</span>
+                        </button>
+                        <div class="privacy-note"><span>✳</span> Sin cuentas. Solo curiosidad.</div>
+                    </div>
+
+                    <div class="preview-card">
+                        <div class="preview-heading"><span>VISTA PREVIA</span><span class="live-indicator">EN VIVO</span></div>
+                        <div class="preview-box">
+                            ${renderizar_grafo_svg({
+                                n: Math.min(n, 8),
+                                matriz: obtener_matriz_previsualizacion(
+                                    Math.min(n, 8),
+                                ),
+                                posiciones: calcular_posiciones(Math.min(n, 8)),
+                                nombres: nombres_disponibles.slice(
+                                    0,
+                                    Math.min(n, 8),
+                                ),
+                                iniciales: nombres_disponibles
+                                    .slice(0, Math.min(n, 8))
+                                    .map((s) => s[0]),
+                                mapa_colores: obtener_colores_previsualizacion(
+                                    Math.min(n, 8),
+                                ),
+                            })}
+                        </div>
+                        <div class="preview-foot"><span class="preview-symbol">↗</span><span>Un grupo aparece cuando todos<br />pueden llegar entre sí.</span></div>
+                    </div>
+                </div>
             </div>
-            <div class="pill ${estado.modo === "aleatorio" ? "active" : ""}" data-action="set-mode" data-value="aleatorio">
-              <div class="pill-title">🎲 Aleatoria</div>
-              <div class="pill-desc">El sistema genera las amistades por ti.</div>
-            </div>
-          </div>
-
-          <div class="btn-row">
-            <button class="btn btn-primary" data-action="start">Crear red →</button>
-          </div>
-
-          <div class="mini-legend">
-            <b>¿Qué va a pasar?</b> Vas a ver la matriz de adyacencia de tu red, cómo se calcula la matriz de caminos, y cómo —ordenando filas y columnas— aparecen bloques que revelan las comunidades.
-          </div>
-        </div>
-
-        <div class="preview-box">
-          ${renderizar_grafo_svg({
-              n: Math.min(n, 8),
-              matriz: obtener_matriz_previsualizacion(Math.min(n, 8)),
-              posiciones: calcular_posiciones(Math.min(n, 8)),
-              nombres: nombres_disponibles.slice(0, Math.min(n, 8)),
-              iniciales: nombres_disponibles
-                  .slice(0, Math.min(n, 8))
-                  .map((s) => s[0]),
-              mapa_colores: obtener_colores_previsualizacion(Math.min(n, 8)),
-          })}
-        </div>
-      </div>
-    </div>
-  </section>`;
+            <div class="home-footnote"><span>01 — 04</span><span>AJUSTA · ELIGE · DESCUBRE</span></div>
+        </section>`;
 }
 
 let _previewMatrixCache = null,
@@ -368,9 +363,7 @@ function obtener_colores_previsualizacion(n) {
     return crear_mapa_colores_componentes(comps, n);
 }
 
-/* ======================================================================
-   PANTALLA: CONSTRUCCIÓN MANUAL
-   ====================================================================== */
+/* Pantalla para armar la red */
 function renderizar_pantalla_construccion() {
     const n = estado.n;
     let chips_aristas = "";
@@ -384,65 +377,64 @@ function renderizar_pantalla_construccion() {
         }
     }
     if (!chips_aristas)
-        chips_aristas = `<span class="empty-note">Aún no hay conexiones. Toca dos usuarios en el grafo para unirlos.</span>`;
+        chips_aristas = `<div class="empty-state"><span class="empty-icon">⌘</span><span>Tu red empieza aquí.<br /><b>Elige dos personas</b> para conectar.</span></div>`;
 
     return `
-  <section class="screen">
-    <div class="panel">
-      <h2 class="section-title">Construye las amistades de tu red</h2>
-      <p class="section-sub">Toca un usuario y luego otro para crear (o quitar) una conexión entre ellos.</p>
-
-      <div class="build-grid">
-        <div>
-          <div class="hint-box">
-            💡 ${
-                estado.nodo_seleccionado_arista === null
-                    ? "Toca el primer usuario para empezar a conectar."
-                    : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> seleccionado — toca a otro usuario para conectarlo (o tócalo de nuevo para cancelar).`
-            }
-          </div>
-          <div class="graph-wrap">
-            ${renderizar_grafo_svg({
-                n,
-                matriz: estado.matriz,
-                posiciones: estado.posiciones,
-                nombres: estado.nombres,
-                iniciales: estado.iniciales,
-                mapa_colores: null,
-                selected: estado.nodo_seleccionado_arista,
-                interactive: true,
-            })}
-          </div>
-          <div class="stat-line">
-            <span>Usuarios: <b>${n}</b></span>
-            <span>Conexiones: <b>${count}</b></span>
-          </div>
-        </div>
-        <div>
-          <h2 class="section-title" style="font-size:15px;">Conexiones actuales</h2>
-          <div class="edge-chip-row">${chips_aristas}</div>
-          ${count > 0 ? `<div class="btn-row"><button class="btn btn-ghost btn-sm" data-action="clear-edges">Limpiar todas</button></div>` : ""}
-        </div>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-ghost" data-action="restart">← Empezar de nuevo</button>
-        <button class="btn btn-primary" data-action="confirm-manual">Analizar esta red →</button>
-      </div>
-    </div>
-  </section>`;
+        <section class="screen">
+            <div class="screen-heading">
+                <div><span class="eyebrow"><span class="eyebrow-line"></span> ARMA TU RED</span><h1 class="page-title">¿Quién conoce a quién?</h1></div>
+                <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
+            </div>
+            <div class="panel workspace-panel">
+                <div class="build-grid">
+                    <div class="graph-column">
+                        <div class="hint-box">
+                            <span class="hint-pulse"></span>
+                            ${
+                                estado.nodo_seleccionado_arista === null
+                                    ? "Toca dos personas para unirlas"
+                                    : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> elegida · toca a otra`
+                            }
+                        </div>
+                        <div class="graph-wrap">
+                            ${renderizar_grafo_svg({
+                                n,
+                                matriz: estado.matriz,
+                                posiciones: estado.posiciones,
+                                nombres: estado.nombres,
+                                iniciales: estado.iniciales,
+                                mapa_colores: null,
+                                selected: estado.nodo_seleccionado_arista,
+                                interactive: true,
+                            })}
+                        </div>
+                        <div class="stat-line">
+                            <span><b>${n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${count}</b> CONEXIONES</span>
+                        </div>
+                    </div>
+                    <aside class="connections-panel">
+                        <div class="connections-heading"><div><span class="section-kicker">TU CÍRCULO</span><h2>Conexiones</h2></div><span class="connection-count">${count}</span></div>
+                        <div class="edge-chip-row">${chips_aristas}</div>
+                        ${count > 0 ? `<button class="text-button" data-action="clear-edges">Borrar todas <span>×</span></button>` : ""}
+                    </aside>
+                </div>
+                <div class="workspace-actions">
+                    <button class="btn btn-ghost" data-action="restart">Volver</button>
+                    <button class="btn btn-primary" data-action="confirm-manual">Encontrar comunidades <span class="button-arrow">↗</span></button>
+                </div>
+            </div>
+        </section>`;
 }
 
-/* ======================================================================
-   PANTALLA: ALGORITMO PASO A PASO
-   ====================================================================== */
+/* Explicación del algoritmo paso a paso */
 function renderizar_puntos_pasos() {
     return titulos_pasos
         .map((t, i) => {
             let cls = "step-dot";
             if (i === estado.paso_algoritmo) cls += " active";
             else if (i < estado.paso_algoritmo) cls += " done";
-            return `<div class="${cls}"><div class="sd-n">Paso ${i + 1}</div><div class="sd-t">${t}</div></div>`;
+            const nombres_cortos = ["Amistades", "Alcance", "Orden", "Grupos"];
+            return `<div class="${cls}"><span class="sd-n">${String(i + 1).padStart(2, "0")}</span><span class="sd-t">${nombres_cortos[i]}</span></div>`;
         })
         .join("");
 }
@@ -455,7 +447,7 @@ function renderizar_pantalla_algoritmo() {
         explicacion = "";
 
     if (estado.paso_algoritmo === 0) {
-        explicacion = `Cada <b>1</b> indica una amistad directa entre dos usuarios. Antes de analizar la red, agregamos <b>1 en toda la diagonal</b>: cada usuario se considera conectado consigo mismo.`;
+        explicacion = `Un <b>1</b> marca una amistad. La diagonal conecta a cada persona consigo misma.`;
         html_matriz_cuerpo = renderizar_tabla_matriz(
             estado.matriz_entrada_caminos,
             iniciales,
@@ -463,7 +455,7 @@ function renderizar_pantalla_algoritmo() {
             { diagBg: true },
         );
     } else if (estado.paso_algoritmo === 1) {
-        explicacion = `Esta es la <b>matriz de caminos</b>: muestra a quién puede llegar cada usuario, de forma directa o a través de una cadena de amistades (amigo-de-amigo-de-amigo...).`;
+        explicacion = `Ahora vemos quién puede llegar a quién, incluso a través de amistades.`;
         html_matriz_cuerpo = renderizar_tabla_matriz(
             estado.matriz_caminos,
             iniciales,
@@ -471,7 +463,7 @@ function renderizar_pantalla_algoritmo() {
             {},
         );
     } else if (estado.paso_algoritmo === 2) {
-        explicacion = `Contamos los <b>1</b> de cada fila y las ordenamos de <b>mayor a menor</b>. Si hay un empate, colocamos primero la fila cuyo primer 1 está más cerca de la primera columna.`;
+        explicacion = `Ordenamos las personas por el tamaño de su grupo.`;
         html_matriz_cuerpo = renderizar_tabla_matriz(
             estado.filas_ordenadas,
             iniciales_ordenadas,
@@ -479,7 +471,7 @@ function renderizar_pantalla_algoritmo() {
             {},
         );
     } else if (estado.paso_algoritmo === 3) {
-        explicacion = `Aplicamos el <b>mismo orden a las columnas</b>. Los bloques cuadrados de 1's que quedan sobre la diagonal son, exactamente, las <b>comunidades</b> de tu red social.`;
+        explicacion = `Los bloques de color revelan las comunidades.`;
         const bloque_de = new Array(n).fill(null);
         estado.componentes.forEach((comp, ci) => {
             comp.forEach((origIdx) => {
@@ -502,35 +494,36 @@ function renderizar_pantalla_algoritmo() {
 
     return `
   <section class="screen">
-    <div class="panel">
-      <h2 class="section-title">Analizando tu red, paso a paso</h2>
-      <p class="section-sub">El método matricial para encontrar componentes conexas.</p>
+    <div class="screen-heading">
+      <div><span class="eyebrow"><span class="eyebrow-line"></span> ASÍ FUNCIONA</span><h1 class="page-title">Sigamos las conexiones.</h1></div>
+      <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
+    </div>
+    <div class="panel workspace-panel algorithm-panel">
       <div class="steps-nav">${renderizar_puntos_pasos()}</div>
 
       <div class="algo-grid">
-        <div>
+        <div class="algorithm-graph">
+          <div class="section-kicker">TU RED</div>
           <div class="graph-wrap">
             ${renderizar_grafo_svg({ n, matriz: estado.matriz, posiciones: estado.posiciones, nombres: estado.nombres, iniciales, mapa_colores })}
           </div>
         </div>
-        <div>
-          <div class="explain-box">${explicacion}</div>
+        <div class="matrix-column">
+          <div class="matrix-heading"><span class="section-kicker">PASO ${String(estado.paso_algoritmo + 1).padStart(2, "0")}</span><span class="matrix-explainer">${explicacion}</span></div>
           ${html_matriz_cuerpo}
         </div>
       </div>
 
       <div class="algo-nav">
-        <button class="btn btn-ghost btn-sm" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Anterior</button>
-        <span class="count">Paso ${estado.paso_algoritmo + 1} de 4</span>
-        <button class="btn btn-primary btn-sm" data-action="algo-next">${estado.paso_algoritmo === 3 ? "Ver resultado final →" : "Siguiente →"}</button>
+        <button class="btn btn-ghost" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Atrás</button>
+        <span class="count"><b>${String(estado.paso_algoritmo + 1).padStart(2, "0")}</b> / 04</span>
+        <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === 3 ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>
       </div>
     </div>
   </section>`;
 }
 
-/* ======================================================================
-   PANTALLA: RESULTADO
-   ====================================================================== */
+/* Resultado de las comunidades */
 function renderizar_pantalla_resultado() {
     const n = estado.n;
     const mapa_colores = crear_mapa_colores_componentes(estado.componentes, n);
@@ -543,10 +536,7 @@ function renderizar_pantalla_resultado() {
                         `<span class="member-chip">${estado.nombres[idx]}</span>`,
                 )
                 .join("");
-            const subtitle =
-                comp.length === 1
-                    ? "Sin conexiones directas — forma su propia comunidad."
-                    : `${comp.length} usuarios conectados entre sí.`;
+            const subtitle = `${comp.length} ${comp.length === 1 ? "persona" : "personas"}`;
             return `<div class="community-card" style="border-left-color:${color};">
       <h3><span class="swatch" style="background:${color};"></span>Comunidad ${ci + 1}</h3>
       <p>${subtitle}</p>
@@ -557,10 +547,14 @@ function renderizar_pantalla_resultado() {
 
     return `
   <section class="screen">
-    <div class="panel">
+    <div class="screen-heading result-heading">
+      <div><span class="eyebrow"><span class="eyebrow-line"></span> LO QUE NOS UNE</span><h1 class="page-title">Tu red tiene <em>${estado.componentes.length} ${estado.componentes.length === 1 ? "grupo" : "grupos"}.</em></h1></div>
+      <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
+    </div>
+    <div class="panel workspace-panel">
       <div class="result-summary">
         <span class="big-n">${estado.componentes.length}</span>
-        <span class="big-label">comunidad${estado.componentes.length === 1 ? "" : "es"} encontrada${estado.componentes.length === 1 ? "" : "s"} entre ${n} usuarios</span>
+        <span class="big-label">comunidades<br /><b>${n} personas · ${estado.matriz.flat().reduce((total, valor) => total + valor, 0) / 2} conexiones</b></span>
       </div>
 
       <div class="result-grid">
@@ -571,15 +565,13 @@ function renderizar_pantalla_resultado() {
       </div>
 
       <div class="btn-row">
-        <button class="btn btn-primary" data-action="restart">🔁 Probar con otra red</button>
+        <button class="btn btn-primary" data-action="restart">Crear otra red <span class="button-arrow">↗</span></button>
       </div>
     </div>
   </section>`;
 }
 
-/* ======================================================================
-   RENDER PRINCIPAL
-   ====================================================================== */
+/* Muestra la pantalla actual */
 function renderizar() {
     const app = document.getElementById("app");
     if (estado.pantalla === "config")
@@ -592,9 +584,7 @@ function renderizar() {
         app.innerHTML = renderizar_pantalla_resultado();
 }
 
-/* ======================================================================
-   EVENTOS
-   ====================================================================== */
+/* Interacciones de la página */
 document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-action]");
     if (!t) return;
@@ -687,8 +677,6 @@ document.addEventListener("change", (evento) => {
     }
 });
 
-/* ======================================================================
-   INICIO
-   ====================================================================== */
+/* Inicia la aplicación */
 estado = crear_estado_inicial();
 renderizar();

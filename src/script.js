@@ -1,7 +1,9 @@
-/* ======================================================================
-   DATOS BASE
-   ====================================================================== */
-const NAME_POOL = ["Ana","Beto","Caro","Dani","Eli","Fabio","Gaby","Hugo","Iris","Jose","Kira","Luis"];
+/*
+======================================================================
+    DATOS BASE
+====================================================================== 
+*/
+const NAME_POOL = ["Amir","Beto","Caro","Dani","Eli","Fabio","Gaby","Hugo","Iris","Jose","Kira","Luis"];
 const COMPONENT_COLORS = ["#22D3C7","#FF8A5B","#C084FC","#FACC15","#60A5FA","#F472B6","#34D399","#FB7185"];
 const NODE_NEUTRAL = "#26314A";
 const NODE_BORDER  = "#3E4E70";
@@ -17,78 +19,80 @@ const STEP_TITLES = [
 let state = null;
 
 function freshState(){
-  return {
-    screen: "config",
-    n: 6,
-    mode: "aleatorio",
-    names: [],
-    initials: [],
-    matrix: [],
-    positions: [],
-    selectedNodeForEdge: null,
-    algoStep: 0,
-    pathInput: null,
-    pathMatrix: null,
-    rowsSortedOnly: null,
-    order: null,
-    reordered: null,
-    components: null
-  };
+    return {
+        screen: "config",
+        n: 6,
+        mode: "aleatorio",
+        names: [],
+        initials: [],
+        matrix: [],
+        positions: [],
+        selectedNodeForEdge: null,
+        algoStep: 0,
+        pathInput: null,
+        pathMatrix: null,
+        rowsSortedOnly: null,
+        order: null,
+        reordered: null,
+        components: null
+    };
 }
 
-/* ======================================================================
-   UTILIDADES DE GRAFOS Y MATRICES
-   ====================================================================== */
+/*
+======================================================================
+    UTILIDADES DE GRAFOS Y MATRICES
+====================================================================== 
+*/
 function emptyMatrix(n){ return Array.from({length:n}, () => Array(n).fill(0)); }
 
 function computePositions(n){
-  const cx = 200, cy = 200, r = n <= 6 ? 128 : (n <= 9 ? 145 : 158);
-  const pts = [];
-  for(let i=0;i<n;i++){
-    const angle = -Math.PI/2 + i * (2*Math.PI/n);
-    pts.push({ x: cx + r*Math.cos(angle), y: cy + r*Math.sin(angle) });
-  }
-  return pts;
+    const cx = 200, cy = 200, r = n <= 6 ? 128 : (n <= 9 ? 145 : 158);
+    const pts = [];
+    for(let i=0;i<n;i++) {
+        const angle = -Math.PI/2 + i * (2*Math.PI/n);
+        pts.push({ x: cx + r*Math.cos(angle), y: cy + r*Math.sin(angle) });
+    }
+    return pts;
 }
 
 function randomizeMatrix(n){
-  const m = emptyMatrix(n);
-  const p = Math.min(0.55, 1.35/n);
-  for(let i=0;i<n;i++){
-    for(let j=i+1;j<n;j++){
-      if(Math.random() < p){ m[i][j]=1; m[j][i]=1; }
+    const m = emptyMatrix(n);
+    const p = Math.min(0.55, 1.35/n);
+    for(let i=0;i<n;i++){
+        for(let j=i+1;j<n;j++){
+            if(Math.random() < p){ m[i][j]=1; m[j][i]=1; }
+        }
     }
-  }
-  return m;
+    return m;
 }
 
-function countOnes(row){ return row.reduce((a,b)=>a+b,0); }
-function firstOneIndex(row){ const idx = row.indexOf(1); return idx === -1 ? Infinity : idx; }
+function countOnes(row) { return row.reduce((a,b)=>a+b,0); }
+function firstOneIndex(row) { const idx = row.indexOf(1); return idx === -1 ? Infinity : idx; }
 
 function withDiagonal(matrix, n){
-  const m = matrix.map(r => r.slice());
-  for(let i=0;i<n;i++) m[i][i] = 1;
-  return m;
+    const m = matrix.map(r => r.slice());
+    for(let i=0;i<n;i++) m[i][i] = 1;
+    return m;
 }
 
 function transitiveClosure(matrix, n){
   const m = matrix.map(r => r.slice());
-  for(let k=0;k<n;k++)
-    for(let i=0;i<n;i++)
-      if(m[i][k])
-        for(let j=0;j<n;j++)
-          if(m[k][j]) m[i][j] = 1;
-  return m;
+    for(let k=0;k<n;k++)
+        for(let i=0;i<n;i++)
+            if(m[i][k])
+                for(let j=0;j<n;j++)
+                    if(m[k][j]) m[i][j] = 1;
+    return m;
 }
 
 function computeOrder(pathMatrix, n){
-  const idx = [...Array(n).keys()];
-  idx.sort((a,b) => {
-    const ca = countOnes(pathMatrix[a]), cb = countOnes(pathMatrix[b]);
-    if(cb !== ca) return cb - ca;
-    return firstOneIndex(pathMatrix[a]) - firstOneIndex(pathMatrix[b]);
-  });
-  return idx;
+    const idx = [...Array(n).keys()];
+    idx.sort((a,b) => {
+        const ca = countOnes(pathMatrix[a]), cb = countOnes(pathMatrix[b]);
+        if(cb !== ca) return cb - ca;
+        return firstOneIndex(pathMatrix[a]) - firstOneIndex(pathMatrix[b]);
+    });
+    return idx;
 }
 
 function reorderMatrix(matrix, order){
@@ -205,9 +209,11 @@ function hexToRgba(hex, a){
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/* ======================================================================
+/* 
+======================================================================
    PANTALLA: CONFIGURACIÓN
-   ====================================================================== */
+====================================================================== 
+*/
 function renderConfigScreen(){
   const n = state.n;
   const fillPct = ((n-4)/(12-4))*100;

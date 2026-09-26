@@ -661,16 +661,16 @@ table.matrix td.diag {
 
 /* Estilos del rediseño */
 :root {
-    --bg: #f5f2ec;
+    --bg: #f0f6f8;
     --bg-elev: #fffefa;
-    --bg-elev-2: #f0ede6;
-    --border: #e8e3d9;
-    --border-soft: #eae5dc;
-    --text: #23251f;
-    --text-muted: #898a80;
-    --accent: #6244e8;
+    --bg-elev-2: #eaf2f5;
+    --border: #dce7eb;
+    --border-soft: #e2ebee;
+    --text: #17232b;
+    --text-muted: #71818a;
+    --accent: #1684b2;
     --accent-ink: #ffffff;
-    --accent-2: #f28a66;
+    --accent-2: #263c4a;
     --danger: #db6152;
     --radius-lg: 26px;
     --radius-md: 18px;
@@ -689,12 +689,12 @@ body {
     background:
         radial-gradient(
             ellipse at 83% 8%,
-            rgba(217, 208, 255, 0.42),
+            rgba(102, 198, 225, 0.24),
             transparent 29rem
         ),
         radial-gradient(
             ellipse at 7% 60%,
-            rgba(250, 224, 203, 0.35),
+            rgba(205, 224, 232, 0.35),
             transparent 27rem
         ),
         var(--bg);
@@ -720,23 +720,44 @@ button {
 }
 
 .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     max-width: 1320px;
     padding: 27px clamp(20px, 5.3vw, 76px);
 }
 
 .brand {
+    min-width: 0;
+    align-items: center;
     gap: 12px;
 }
 
+.brand-mark-frame {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    flex: none;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #bceafa;
+}
+
 .brand-mark {
-    width: 38px;
-    height: 38px;
-    border: 1px solid rgba(98, 68, 232, 0.12);
-    border-radius: 14px;
-    background: #e8e2ff;
-    color: var(--accent);
-    font-size: 22px;
-    box-shadow: 0 4px 12px rgba(98, 68, 232, 0.08);
+    width: 100%;
+    height: 100%;
+    flex: none;
+    object-fit: contain;
+}
+
+.brand-wordmark {
+    display: block;
+    width: clamp(90px, 15vw, 150px);
+    height: 48px;
+    flex: none;
+    object-fit: cover;
+    object-position: center;
 }
 
 .brand-name {
@@ -921,7 +942,7 @@ input[type="range"]::-webkit-slider-thumb {
     height: 20px;
     border: 5px solid var(--accent);
     background: #fffefa;
-    box-shadow: 0 2px 8px rgba(61, 42, 157, 0.2);
+    box-shadow: 0 2px 8px rgba(22, 132, 178, 0.2);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -929,7 +950,7 @@ input[type="range"]::-moz-range-thumb {
     height: 12px;
     border: 5px solid var(--accent);
     background: #fffefa;
-    box-shadow: 0 2px 8px rgba(61, 42, 157, 0.2);
+    box-shadow: 0 2px 8px rgba(22, 132, 178, 0.2);
 }
 
 .range-labels {
@@ -972,13 +993,13 @@ button.pill {
 
 button.pill:hover {
     transform: translateY(-2px);
-    border-color: #cbc0ff;
+    border-color: #9bd6e8;
 }
 
 button.pill.active {
-    border-color: rgba(98, 68, 232, 0.68);
-    background: #f7f4ff;
-    box-shadow: 0 4px 13px rgba(98, 68, 232, 0.08);
+    border-color: rgba(22, 132, 178, 0.68);
+    background: #effaff;
+    box-shadow: 0 4px 13px rgba(22, 132, 178, 0.08);
 }
 
 .pill-icon {
@@ -987,7 +1008,7 @@ button.pill.active {
     height: 36px;
     place-items: center;
     border-radius: 12px;
-    background: #eee9ff;
+    background: #e1f5fb;
     color: var(--accent);
     font-size: 17px;
 }
@@ -1046,12 +1067,12 @@ button.pill.active {
 .btn-primary {
     background: var(--accent);
     color: white;
-    box-shadow: 0 8px 18px rgba(98, 68, 232, 0.2);
+    box-shadow: 0 8px 18px rgba(22, 132, 178, 0.2);
 }
 
 .btn-primary:hover:not([disabled]) {
-    background: #5235d1;
-    box-shadow: 0 11px 23px rgba(98, 68, 232, 0.27);
+    background: #106b91;
+    box-shadow: 0 11px 23px rgba(22, 132, 178, 0.27);
     filter: none;
 }
 
@@ -1108,9 +1129,9 @@ button.pill.active {
     border-radius: 20px;
     background: radial-gradient(
         ellipse at 50% 53%,
-        #eeebff 0%,
-        #f8f6ff 46%,
-        #f5f2ec 100%
+        #e9f7fb 0%,
+        #f4fafb 46%,
+        #f0f6f8 100%
     );
 }
 
@@ -1200,7 +1221,7 @@ button.pill.active {
 }
 
 .network-controls button:hover {
-    background: #eeeaff;
+    background: #e2f5fa;
     color: var(--accent);
 }
 
@@ -1239,15 +1260,15 @@ button.pill.active {
     width: 100%;
     min-width: 0;
     height: 420px;
-    border: 1px solid rgba(103, 90, 158, 0.1);
+    border: 1px solid rgba(38, 90, 111, 0.12);
     transition: height 0.25s ease;
     background:
         radial-gradient(
             circle at 50% 50%,
-            rgba(232, 226, 255, 0.52),
+            rgba(196, 235, 246, 0.58),
             transparent 66%
         ),
-        #fbfaff;
+        #f8fcfd;
 }
 
 .preview-frame .network-canvas {
@@ -1255,7 +1276,7 @@ button.pill.active {
 }
 
 .preview-frame .network-person {
-    color: #615b76;
+    color: #536b76;
 }
 
 .graph-wrap > .network-frame {
@@ -1268,8 +1289,8 @@ button.pill.active {
     align-items: center;
     gap: 11px;
     padding: 12px 2px 1px;
-    border-top: 1px solid rgba(103, 90, 158, 0.1);
-    color: #817d8d;
+    border-top: 1px solid rgba(38, 90, 111, 0.12);
+    color: #71818a;
     font-size: 10px;
     line-height: 1.5;
 }
@@ -1281,7 +1302,7 @@ button.pill.active {
     flex: none;
     place-items: center;
     border-radius: 10px;
-    background: #e8e2ff;
+    background: #dff3f9;
     color: var(--accent);
     font-size: 15px;
 }
@@ -1323,7 +1344,7 @@ button.pill.active {
 
 .icon-button:hover {
     transform: translateX(-2px);
-    border-color: #c9befb;
+    border-color: #9bd6e8;
     color: var(--accent);
 }
 
@@ -1353,14 +1374,14 @@ button.pill.active {
 .hint-pulse {
     flex: none;
     background: var(--accent);
-    box-shadow: 0 0 0 4px rgba(98, 68, 232, 0.1);
+    box-shadow: 0 0 0 4px rgba(22, 132, 178, 0.1);
 }
 
 .graph-wrap {
     overflow: hidden;
     border: 1px solid #eeebe4;
     border-radius: 18px;
-    background: radial-gradient(ellipse at 50% 48%, #f0edff, #faf9f5 74%);
+    background: radial-gradient(ellipse at 50% 48%, #e7f6fa, #f8fbfa 74%);
     padding: clamp(8px, 2vw, 18px);
 }
 
@@ -1471,7 +1492,7 @@ svg.graph g[data-action="pick-node"] circle {
     height: 31px;
     place-items: center;
     border-radius: 11px;
-    background: #eae5ff;
+    background: #e1f3f8;
     color: var(--accent);
     font-family: var(--mono);
     font-size: 12px;
@@ -1547,7 +1568,7 @@ svg.graph g[data-action="pick-node"] circle {
     flex: none;
     place-items: center;
     border-radius: 11px;
-    background: #eeeaff;
+    background: #e1f3f8;
     color: var(--accent);
     font-size: 15px;
 }
@@ -1628,8 +1649,8 @@ svg.graph g[data-action="pick-node"] circle {
 }
 
 .step-dot.done .sd-n {
-    border-color: #ddd5ff;
-    background: #eeeaff;
+    border-color: #b9e3ef;
+    background: #e1f3f8;
     color: var(--accent);
 }
 
@@ -1764,7 +1785,7 @@ table.matrix td {
 }
 
 table.matrix td.one {
-    color: #5b43c9;
+    color: #1684b2;
 }
 
 table.matrix td.diag {
@@ -1833,7 +1854,7 @@ table.matrix-large td {
     height: 58px;
     place-items: center;
     border-radius: 19px;
-    background: #eeeaff;
+    background: #e1f3f8;
     color: var(--accent);
     font-size: 31px;
 }
@@ -1898,6 +1919,8 @@ table.matrix-large td {
 
 @media (max-width: 760px) {
     .topbar {
+        flex-direction: row;
+        align-items: center;
         padding: 19px 22px 8px;
     }
 
@@ -1952,12 +1975,25 @@ table.matrix-large td {
 
 @media (max-width: 500px) {
     .topbar {
+        flex-direction: row;
+        align-items: center;
         padding: 16px 17px 5px;
     }
 
-    .brand-mark {
-        width: 34px;
-        height: 34px;
+    .brand-mark-frame {
+        width: 40px;
+        height: 40px;
+        border-radius: 13px;
+    }
+
+    .brand-wordmark {
+        width: 78px;
+        height: 40px;
+    }
+
+    .brand-name {
+        font-size: clamp(16px, 5vw, 19px);
+        letter-spacing: -0.7px;
     }
 
     .badge-course {

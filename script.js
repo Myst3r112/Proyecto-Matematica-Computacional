@@ -1,114 +1,14 @@
-﻿/* Datos base */
-const nombres_disponibles = [
-    "Amir",
-    "Beto",
-    "Caro",
-    "Dani",
-    "Eli",
-    "Fabio",
-    "Gaby",
-    "Hugo",
-    "Iris",
-    "José",
-    "Kira",
-    "Luis",
-    "Abril",
-    "Adrián",
-    "Aitana",
-    "Alejandro",
-    "Alicia",
-    "Alonso",
-    "Amalia",
-    "Andrés",
-    "Ángel",
-    "Antonio",
-    "Ariadna",
-    "Arturo",
-    "Axel",
-    "Bárbara",
-    "Beatriz",
-    "Benjamín",
-    "Bianca",
-    "Bruno",
-    "Camila",
-    "Carlos",
-    "Catalina",
-    "Cecilia",
-    "César",
-    "Clara",
-    "Damián",
-    "Daniela",
-    "David",
-    "Diego",
-    "Elena",
-    "Emilia",
-    "Emilio",
-    "Emma",
-    "Enrique",
-    "Esteban",
-    "Eva",
-    "Fabián",
-    "Fernanda",
-    "Francisco",
-    "Gael",
-    "Gabriela",
-    "Inés",
-    "Iván",
-    "Javier",
-    "Jimena",
-    "Joaquín",
-    "Jorge",
-    "Julia",
-    "Julián",
-    "Laura",
-    "Leo",
-    "Leonor",
-    "Lucía",
-    "Manuel",
-    "Marcela",
-    "Marco",
-    "Mariana",
-    "Mateo",
-    "Matías",
-    "Maya",
-    "Miguel",
-    "Mía",
-    "Nicolás",
-    "Noa",
-    "Olivia",
-    "Óscar",
-    "Pablo",
-    "Paula",
-    "Pedro",
-    "Rafael",
-    "Renata",
-    "Rodrigo",
-    "Romina",
-    "Samuel",
-    "Sara",
-    "Sebastián",
-    "Sofía",
-    "Tomás",
-    "Valentina",
-    "Valeria",
-    "Vicente",
-    "Victoria",
-    "Xavier",
-    "Zoe",
-    "Agustín",
-    "Alma",
-    "Ana",
-    "Carolina",
-    "Diana",
-];
-const cantidad_maxima_usuarios = 100;
-const cantidad_maxima_iniciales = 12;
-const colores_componentes = Array.from(
-    { length: cantidad_maxima_usuarios },
-    (_, indice) => generar_color_componente(indice),
-);
-const color_nodo_neutro = "#D9D1FF";
-const color_arista_neutra = "#3A4A66";
+const {
+    CANTIDAD_MAXIMA_USUARIOS,
+    color_nodo_neutro,
+    color_arista_neutra,
+    crear_matriz_vacia,
+    obtener_nombres_red,
+    generar_matriz_aleatoria,
+    calcular_datos_algoritmo,
+    crear_mapa_colores_componentes,
+    obtener_color_componente,
+} = window.CoonectowskiGraph;
 
 const titulos_pasos = [
     "Matriz de adyacencia",
@@ -116,12 +16,25 @@ const titulos_pasos = [
     "Ordenar filas",
     "Reordenar columnas",
 ];
+const nombres_cortos_pasos = ["Amistades", "Alcance", "Orden", "Grupos"];
+const ULTIMO_PASO_ALGORITMO = titulos_pasos.length - 1;
 
 let estado = null;
 let configuraciones_grafos = [];
 let instancias_grafos = [];
 let desplazamiento_suave = null;
 let distribucion_previsualizacion = null;
+const cache_previsualizacion = {
+    cantidad: null,
+    matriz: null,
+    mapa_colores: null,
+};
+const renderizadores_pantalla = {
+    config: renderizar_pantalla_configuracion,
+    manualBuild: renderizar_pantalla_construccion,
+    algorithm: renderizar_pantalla_algoritmo,
+    result: renderizar_pantalla_resultado,
+};
 
 function crear_estado_inicial() {
     return {
@@ -129,7 +42,6 @@ function crear_estado_inicial() {
         n: 6,
         modo: "aleatorio",
         nombres: [],
-        iniciales: [],
         matriz: [],
         nodo_seleccionado_arista: null,
         paso_algoritmo: 0,
@@ -142,204 +54,8 @@ function crear_estado_inicial() {
     };
 }
 
-/* Operaciones con grafos y matrices */
-function crear_matriz_vacia(n) {
-    return Array.from({ length: n }, () => Array(n).fill(0));
-}
-
-function obtener_nombres_red(n) {
-    return Array.from({ length: n }, (_, indice) =>
-        indice < nombres_disponibles.length
-            ? nombres_disponibles[indice]
-            : `Persona ${indice + 1}`,
-    );
-}
-
-function generar_matriz_aleatoria(n) {
-    const m = crear_matriz_vacia(n);
-    const tamano_grupo_principal = Math.min(
-        Math.max(2, n - 2),
-        Math.max(2, Math.round(n * (0.6 + Math.random() * 0.16))),
-    );
-    const probabilidad_conexion_adicional = 0.06 + Math.random() * 0.08;
-    const tamanos_grupos = [tamano_grupo_principal];
-    let personas_restantes = n - tamano_grupo_principal;
-
-    while (personas_restantes > 0) {
-        if (personas_restantes <= 5) {
-            if (personas_restantes === 1) {
-                tamanos_grupos[tamanos_grupos.length - 1]++;
-            } else {
-                tamanos_grupos.push(personas_restantes);
-            }
-            break;
-        }
-
-        const tamano_maximo = Math.min(5, personas_restantes - 2);
-        const tamano_grupo =
-            2 + Math.floor(Math.random() * (tamano_maximo - 1));
-        tamanos_grupos.push(tamano_grupo);
-        personas_restantes -= tamano_grupo;
-    }
-
-    const personas = Array.from({ length: n }, (_, indice) => indice);
-    for (let indice = personas.length - 1; indice > 0; indice--) {
-        const otro_indice = Math.floor(Math.random() * (indice + 1));
-        [personas[indice], personas[otro_indice]] = [
-            personas[otro_indice],
-            personas[indice],
-        ];
-    }
-
-    let inicio_grupo = 0;
-    tamanos_grupos.forEach((tamano_grupo) => {
-        const grupo = personas.slice(inicio_grupo, inicio_grupo + tamano_grupo);
-        inicio_grupo += tamano_grupo;
-
-        for (let indice = 1; indice < grupo.length; indice++) {
-            const persona = grupo[indice];
-            const persona_conocida =
-                grupo[Math.floor(Math.random() * indice)];
-            m[persona][persona_conocida] = 1;
-            m[persona_conocida][persona] = 1;
-        }
-
-        for (let fila = 0; fila < grupo.length; fila++) {
-            for (let columna = fila + 1; columna < grupo.length; columna++) {
-                if (Math.random() < probabilidad_conexion_adicional) {
-                    m[grupo[fila]][grupo[columna]] = 1;
-                    m[grupo[columna]][grupo[fila]] = 1;
-                }
-            }
-        }
-    });
-
-    return m;
-}
-
-function contar_unos(row) {
-    return row.reduce((a, b) => a + b, 0);
-}
-function indice_primer_uno(row) {
-    const idx = row.indexOf(1);
-    return idx === -1 ? Infinity : idx;
-}
-
-function agregar_diagonal(matrix, n) {
-    const m = matrix.map((r) => r.slice());
-    for (let i = 0; i < n; i++) m[i][i] = 1;
-    return m;
-}
-
-function calcular_clausura_transitiva(matrix, n) {
-    const m = matrix.map((r) => r.slice());
-    for (let k = 0; k < n; k++)
-        for (let i = 0; i < n; i++)
-            if (m[i][k]) for (let j = 0; j < n; j++) if (m[k][j]) m[i][j] = 1;
-    return m;
-}
-
-function calcular_orden(matriz_caminos, n) {
-    const idx = [...Array(n).keys()];
-    idx.sort((a, b) => {
-        const ca = contar_unos(matriz_caminos[a]),
-            cb = contar_unos(matriz_caminos[b]);
-        if (cb !== ca) return cb - ca;
-        return (
-            indice_primer_uno(matriz_caminos[a]) -
-            indice_primer_uno(matriz_caminos[b])
-        );
-    });
-    return idx;
-}
-
-function reordenar_matriz(matrix, order) {
-    const n = order.length;
-    const out = Array.from({ length: n }, () => Array(n).fill(0));
-    for (let i = 0; i < n; i++)
-        for (let j = 0; j < n; j++) out[i][j] = matrix[order[i]][order[j]];
-    return out;
-}
-
-function reordenar_solo_filas(matrix, order) {
-    return order.map((i) => matrix[i].slice());
-}
-
-function detectar_componentes(reordered, order) {
-    const n = order.length;
-    const comps = [];
-    let p = 0;
-    while (p < n) {
-        const size = contar_unos(reordered[p]);
-        comps.push(order.slice(p, p + size));
-        p += size;
-    }
-    return comps;
-}
-
 function ejecutar_algoritmo() {
-    const n = estado.n;
-    estado.matriz_entrada_caminos = agregar_diagonal(estado.matriz, n);
-    estado.matriz_caminos = calcular_clausura_transitiva(
-        estado.matriz_entrada_caminos,
-        n,
-    );
-    estado.orden = calcular_orden(estado.matriz_caminos, n);
-    estado.filas_ordenadas = reordenar_solo_filas(
-        estado.matriz_caminos,
-        estado.orden,
-    );
-    estado.matriz_reordenada = reordenar_matriz(
-        estado.matriz_caminos,
-        estado.orden,
-    );
-    estado.componentes = detectar_componentes(
-        estado.matriz_reordenada,
-        estado.orden,
-    );
-}
-
-function crear_mapa_colores_componentes(components, n) {
-    const map = new Array(n).fill(null);
-    components.forEach((comp, ci) => {
-        const color = obtener_color_componente(ci);
-        comp.forEach((nodeIdx) => {
-            map[nodeIdx] = color;
-        });
-    });
-    return map;
-}
-
-function obtener_color_componente(indice) {
-    return colores_componentes[indice % colores_componentes.length];
-}
-
-function generar_color_componente(indice) {
-    const matiz = (indice * 137.508) % 360;
-    const saturacion = 0.66 + (indice % 3) * 0.06;
-    const luminosidad = 0.46 + (Math.floor(indice / 3) % 3) * 0.045;
-    const c = (1 - Math.abs(2 * luminosidad - 1)) * saturacion;
-    const x = c * (1 - Math.abs(((matiz / 60) % 2) - 1));
-    const m = luminosidad - c / 2;
-    const [rojo, verde, azul] =
-        matiz < 60
-            ? [c, x, 0]
-            : matiz < 120
-              ? [x, c, 0]
-              : matiz < 180
-                ? [0, c, x]
-                : matiz < 240
-                  ? [0, x, c]
-                  : matiz < 300
-                    ? [x, 0, c]
-                    : [c, 0, x];
-    return `#${[rojo, verde, azul]
-        .map((valor) =>
-            Math.round((valor + m) * 255)
-                .toString(16)
-                .padStart(2, "0"),
-        )
-        .join("")}`;
+    Object.assign(estado, calcular_datos_algoritmo(estado.matriz));
 }
 
 /* Prepara los datos para mostrar la red interactiva */
@@ -359,7 +75,6 @@ function renderizar_grafo(opciones) {
 
 function crear_elementos_grafo(opciones) {
     const cantidad = opciones.n;
-    const etiquetas = cantidad > cantidad_maxima_iniciales;
     const orden_colores = new Map();
     const orden_nodos = Array.from(
         { length: cantidad },
@@ -382,12 +97,10 @@ function crear_elementos_grafo(opciones) {
         data: {
             id: String(indice),
             nombre: opciones.nombres[indice],
-            etiqueta: etiquetas
-                ? String(indice + 1)
-                : opciones.iniciales[indice],
+            etiqueta: String(indice + 1),
             color: opciones.mapa_colores?.[indice] ?? color_nodo_neutro,
         },
-        classes: opciones.selected === indice ? "seleccionado" : "",
+        classes: opciones.seleccionado === indice ? "seleccionado" : "",
     }));
     const aristas = [];
     for (let fila = 0; fila < cantidad; fila++) {
@@ -409,12 +122,12 @@ function crear_elementos_grafo(opciones) {
     return [...nodos, ...aristas];
 }
 
-function crear_opciones_distribucion(cantidad, etiquetas) {
+function crear_opciones_distribucion(cantidad) {
     return {
         name: "cose",
         animate: false,
         fit: false,
-        padding: etiquetas ? 32 : 42,
+        padding: cantidad > 12 ? 32 : 42,
         nodeRepulsion: cantidad > 50 ? 3500 : 8000,
         idealEdgeLength: cantidad > 50 ? 38 : 52,
         gravity: cantidad > 50 ? 0.22 : 0.35,
@@ -430,10 +143,7 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
     }
 
     const distribucion = instancia.layout(
-        crear_opciones_distribucion(
-            opciones.n,
-            opciones.n > cantidad_maxima_iniciales,
-        ),
+        crear_opciones_distribucion(opciones.n),
     );
     if (es_previsualizacion) {
         distribucion_previsualizacion = distribucion;
@@ -469,7 +179,6 @@ function posicionar_grafos() {
         const opciones =
             configuraciones_grafos[Number(lienzo.dataset.networkIndex)];
         const cantidad = opciones.n;
-        const etiquetas = cantidad > cantidad_maxima_iniciales;
         const marco = lienzo.closest(".network-frame");
         if (!opciones.previsualizacion) {
             marco.style.setProperty(
@@ -517,7 +226,7 @@ function posicionar_grafos() {
                         width: tamano_nodo + 8,
                         height: tamano_nodo + 8,
                         "border-width": 3,
-                        "border-color": "#6244e8",
+                        "border-color": "#1684B2",
                         "z-index": 10,
                     },
                 },
@@ -544,7 +253,7 @@ function posicionar_grafos() {
                 ?.querySelector(".network-person")
                 ?.replaceChildren(document.createTextNode(nodo.data("nombre")));
 
-            if (opciones.interactive) {
+            if (opciones.interactivo) {
                 seleccionar_nodo_red(Number(nodo.id()), instancia);
             } else {
                 instancia.nodes().removeClass("seleccionado");
@@ -562,14 +271,8 @@ function actualizar_vista_previa(n) {
     const instancia = instancias_grafos[indice];
     if (!instancia) return;
 
-    const matriz = obtener_matriz_previsualizacion(n);
-    const nombres = obtener_nombres_red(n);
     const opciones = {
-        n,
-        matriz,
-        nombres,
-        iniciales: nombres.map((nombre) => nombre[0]),
-        mapa_colores: obtener_colores_previsualizacion(n),
+        ...crear_opciones_previsualizacion(n),
         previsualizacion: true,
     };
     configuraciones_grafos[indice] = opciones;
@@ -620,7 +323,7 @@ window.addEventListener("resize", () => {
         if (instancia) {
             instancia.fit(
                 instancia.elements(),
-                estado.n > cantidad_maxima_iniciales ? 32 : 42,
+                estado.n > 12 ? 32 : 42,
             );
         }
     });
@@ -636,14 +339,16 @@ function renderizar_tabla_matriz(
     opciones = opciones || {};
     const n = matrix.length;
     const tamano = n > 50 ? "large" : n > 24 ? "medium" : "small";
-    let encabezado_tabla = `<thead><tr><th></th>${etiquetas_columnas.map((l) => `<th scope="col">${l}</th>`).join("")}</tr></thead>`;
+    let encabezado_tabla = `<thead><tr><th></th>${    etiquetas_columnas
+        .map((etiqueta) => `<th scope="col">${etiqueta}</th>`)
+        .join("")}</tr></thead>`;
     let rows = "";
     for (let i = 0; i < n; i++) {
         let cells = "";
         for (let j = 0; j < n; j++) {
             const val = matrix[i][j];
             let cls = val ? "one" : "";
-            if (opciones.diagBg && i === j) cls += " diag";
+            if (opciones.fondo_diagonal && i === j) cls += " diag";
             let style = "";
             if (opciones.bloque_de) {
                 const bi = opciones.bloque_de[i],
@@ -670,7 +375,7 @@ function hexadecimal_a_rgba(hex, a) {
 /* Pantalla de configuración */
 function renderizar_pantalla_configuracion() {
     const n = estado.n;
-    const porcentaje_relleno = ((n - 4) / (cantidad_maxima_usuarios - 4)) * 100;
+    const porcentaje_relleno = calcular_porcentaje_red(n);
     return `
         <section class="screen screen-config">
             <div class="hero-copy">
@@ -686,8 +391,8 @@ function renderizar_pantalla_configuracion() {
                         <div class="count-row">
                             <div class="count-display">${n}</div>
                             <div class="count-slider">
-                                <input aria-label="Cantidad de personas" type="range" min="4" max="${cantidad_maxima_usuarios}" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
-                                <div class="range-labels"><span>4</span><span>${cantidad_maxima_usuarios}</span></div>
+                                <input aria-label="Cantidad de personas" type="range" min="4" max="${CANTIDAD_MAXIMA_USUARIOS}" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
+                                <div class="range-labels"><span>4</span><span>${CANTIDAD_MAXIMA_USUARIOS}</span></div>
                             </div>
                         </div>
 
@@ -715,13 +420,7 @@ function renderizar_pantalla_configuracion() {
                         <div class="preview-box">
                             ${renderizar_grafo({
                                 n,
-                                matriz: obtener_matriz_previsualizacion(n),
-                                nombres: obtener_nombres_red(n),
-                                iniciales: obtener_nombres_red(n).map(
-                                    (nombre) => nombre[0],
-                                ),
-                                mapa_colores:
-                                    obtener_colores_previsualizacion(n),
+                                ...crear_opciones_previsualizacion(n),
                                 previsualizacion: true,
                             })}
                         </div>
@@ -732,26 +431,39 @@ function renderizar_pantalla_configuracion() {
         </section>`;
 }
 
-let matriz_previsualizacion_cache = null;
-let tamano_matriz_previsualizacion_cache = null;
-function obtener_matriz_previsualizacion(n) {
+function obtener_datos_previsualizacion(n) {
     if (
-        matriz_previsualizacion_cache &&
-        tamano_matriz_previsualizacion_cache === n
+        cache_previsualizacion.matriz &&
+        cache_previsualizacion.cantidad === n
     ) {
-        return matriz_previsualizacion_cache;
+        return cache_previsualizacion;
     }
-    tamano_matriz_previsualizacion_cache = n;
-    matriz_previsualizacion_cache = generar_matriz_aleatoria(n);
-    return matriz_previsualizacion_cache;
+
+    const matriz = generar_matriz_aleatoria(n);
+    const { componentes } = calcular_datos_algoritmo(matriz);
+    cache_previsualizacion.cantidad = n;
+    cache_previsualizacion.matriz = matriz;
+    cache_previsualizacion.mapa_colores = crear_mapa_colores_componentes(
+        componentes,
+        n,
+    );
+    return cache_previsualizacion;
 }
-function obtener_colores_previsualizacion(n) {
-    const wd = agregar_diagonal(obtener_matriz_previsualizacion(n), n);
-    const pm = calcular_clausura_transitiva(wd, n);
-    const order = calcular_orden(pm, n);
-    const ro = reordenar_matriz(pm, order);
-    const comps = detectar_componentes(ro, order);
-    return crear_mapa_colores_componentes(comps, n);
+
+function calcular_porcentaje_red(cantidad) {
+    return ((cantidad - 4) / (CANTIDAD_MAXIMA_USUARIOS - 4)) * 100;
+}
+
+function crear_opciones_previsualizacion(cantidad) {
+    const { matriz, mapa_colores } = obtener_datos_previsualizacion(cantidad);
+    const nombres = obtener_nombres_red(cantidad);
+
+    return {
+        n: cantidad,
+        matriz,
+        nombres,
+        mapa_colores,
+    };
 }
 
 /* Pantalla para armar la red */
@@ -778,11 +490,10 @@ function renderizar_pantalla_construccion() {
                                             n,
                                             matriz: estado.matriz,
                                             nombres: estado.nombres,
-                                            iniciales: estado.iniciales,
                                             mapa_colores: null,
-                                            selected:
+                                            seleccionado:
                                                 estado.nodo_seleccionado_arista,
-                                            interactive: true,
+                                            interactivo: true,
                                         })}
                         </div>
                         <div class="stat-line">
@@ -836,13 +547,15 @@ function actualizar_interfaz_construccion(instancia) {
 
     const lienzo = document.querySelector(".graph-column .network-canvas");
     if (lienzo) {
-        configuraciones_grafos[Number(lienzo.dataset.networkIndex)].matriz =
-            estado.matriz;
+        const indice_grafo = Number(lienzo.dataset.networkIndex);
+        const configuracion = configuraciones_grafos[indice_grafo];
+        if (configuracion) configuracion.matriz = estado.matriz;
     }
+
+    const conexiones = obtener_conexiones_manuales();
     indicacion.innerHTML = obtener_texto_indicacion_manual();
-    const cantidad_conexiones = obtener_conexiones_manuales().cantidad;
-    resumen.innerHTML = `<span><b>${estado.n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${cantidad_conexiones}</b> CONEXIONES</span>`;
-    panel_conexiones.innerHTML = obtener_conexiones_manuales().html;
+    resumen.innerHTML = `<span><b>${estado.n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> CONEXIONES</span>`;
+    panel_conexiones.innerHTML = conexiones.html;
     if (!instancia) return;
 
     instancia.nodes().forEach((nodo) => {
@@ -882,75 +595,100 @@ function actualizar_interfaz_construccion(instancia) {
 /* Explicación del algoritmo paso a paso */
 function renderizar_puntos_pasos() {
     return titulos_pasos
-        .map((t, i) => {
-            let cls = "step-dot";
-            if (i === estado.paso_algoritmo) cls += " active";
-            else if (i < estado.paso_algoritmo) cls += " done";
-            const nombres_cortos = ["Amistades", "Alcance", "Orden", "Grupos"];
-            return `<div class="${cls}" aria-current="${i === estado.paso_algoritmo ? "step" : "false"}"><span class="sd-t">${nombres_cortos[i]}</span></div>`;
+        .map((_, indice) => {
+            const clase =
+                indice === estado.paso_algoritmo
+                    ? "step-dot active"
+                    : indice < estado.paso_algoritmo
+                      ? "step-dot done"
+                      : "step-dot";
+            const paso_actual = indice === estado.paso_algoritmo;
+
+            return `<div class="${clase}" aria-current="${paso_actual ? "step" : "false"}"><span class="sd-t">${nombres_cortos_pasos[indice]}</span></div>`;
         })
         .join("");
 }
 
 function obtener_contenido_paso_algoritmo() {
-    const n = estado.n;
-    const iniciales = estado.iniciales;
-    const iniciales_ordenadas = estado.orden.map((i) => iniciales[i]);
-    let html_matriz_cuerpo = "",
-        explicacion = "";
+    const etiquetas_originales = Array.from(
+        { length: estado.n },
+        (_, indice) => String(indice + 1),
+    );
+    const etiquetas_ordenadas = estado.orden.map(
+        (indice) => String(indice + 1),
+    );
+    let matriz;
+    let etiquetas_filas;
+    let etiquetas_columnas;
+    let opciones_matriz = {};
+    let explicacion;
+    let mapa_colores = null;
 
-    if (estado.paso_algoritmo === 0) {
-        explicacion = `Un <b>1</b> marca una amistad. La diagonal conecta a cada persona consigo misma.`;
-        html_matriz_cuerpo = renderizar_tabla_matriz(
-            estado.matriz_entrada_caminos,
-            iniciales,
-            iniciales,
-            { diagBg: true },
-        );
-    } else if (estado.paso_algoritmo === 1) {
-        explicacion = `Ahora vemos quién puede llegar a quién, incluso a través de amistades.`;
-        html_matriz_cuerpo = renderizar_tabla_matriz(
-            estado.matriz_caminos,
-            iniciales,
-            iniciales,
-            {},
-        );
-    } else if (estado.paso_algoritmo === 2) {
-        explicacion = `Ordenamos las personas por el tamaño de su grupo.`;
-        html_matriz_cuerpo = renderizar_tabla_matriz(
-            estado.filas_ordenadas,
-            iniciales_ordenadas,
-            iniciales,
-            {},
-        );
-    } else if (estado.paso_algoritmo === 3) {
-        explicacion = `Los bloques de color revelan las comunidades.`;
-        const bloque_de = new Array(n).fill(null);
-        estado.componentes.forEach((comp, ci) => {
-            comp.forEach((origIdx) => {
-                const pos = estado.orden.indexOf(origIdx);
-                bloque_de[pos] = ci;
+    switch (estado.paso_algoritmo) {
+        case 0:
+            matriz = estado.matriz_entrada_caminos;
+            etiquetas_filas = etiquetas_originales;
+            etiquetas_columnas = etiquetas_originales;
+            opciones_matriz = { fondo_diagonal: true };
+            explicacion =
+                "Un <b>1</b> marca una amistad. La diagonal conecta a cada persona consigo misma.";
+            break;
+        case 1:
+            matriz = estado.matriz_caminos;
+            etiquetas_filas = etiquetas_originales;
+            etiquetas_columnas = etiquetas_originales;
+            explicacion =
+                "Ahora vemos quién puede llegar a quién, incluso a través de amistades.";
+            break;
+        case 2:
+            matriz = estado.filas_ordenadas;
+            etiquetas_filas = etiquetas_ordenadas;
+            etiquetas_columnas = etiquetas_originales;
+            explicacion = "Ordenamos las personas por el tamaño de su grupo.";
+            break;
+        case 3: {
+            matriz = estado.matriz_reordenada;
+            etiquetas_filas = etiquetas_ordenadas;
+            etiquetas_columnas = etiquetas_ordenadas;
+            const posicion_por_indice = new Map(
+                estado.orden.map((indice, posicion) => [indice, posicion]),
+            );
+            const bloque_de = new Array(estado.n).fill(null);
+
+            estado.componentes.forEach((componente, indice_comunidad) => {
+                componente.forEach((indice_persona) => {
+                    bloque_de[posicion_por_indice.get(indice_persona)] =
+                        indice_comunidad;
+                });
             });
-        });
-        html_matriz_cuerpo = renderizar_tabla_matriz(
-            estado.matriz_reordenada,
-            iniciales_ordenadas,
-            iniciales_ordenadas,
-            { bloque_de },
-        );
+            opciones_matriz = { bloque_de };
+            mapa_colores = crear_mapa_colores_componentes(
+                estado.componentes,
+                estado.n,
+            );
+            explicacion = "Los bloques de color revelan las comunidades.";
+            break;
+        }
+        default:
+            throw new Error(`Paso de algoritmo desconocido: ${estado.paso_algoritmo}`);
     }
 
-    const mapa_colores = estado.paso_algoritmo === 3
-        ? crear_mapa_colores_componentes(estado.componentes, n)
-        : null;
-
-    return { explicacion, html_matriz_cuerpo, mapa_colores };
+    return {
+        explicacion,
+        html_matriz_cuerpo: renderizar_tabla_matriz(
+            matriz,
+            etiquetas_filas,
+            etiquetas_columnas,
+            opciones_matriz,
+        ),
+        mapa_colores,
+    };
 }
 
 function renderizar_navegacion_algoritmo() {
     return `
         <button class="btn btn-ghost" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Atrás</button>
-        <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === 3 ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>`;
+        <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === ULTIMO_PASO_ALGORITMO ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>`;
 }
 
 function actualizar_colores_grafo_algoritmo(mapa_colores) {
@@ -984,7 +722,6 @@ function actualizar_pantalla_algoritmo() {
 
 function renderizar_pantalla_algoritmo() {
     const n = estado.n;
-    const iniciales = estado.iniciales;
     const { explicacion, html_matriz_cuerpo, mapa_colores } =
         obtener_contenido_paso_algoritmo();
 
@@ -1001,7 +738,7 @@ function renderizar_pantalla_algoritmo() {
         <div class="algorithm-graph">
           <div class="section-kicker">TU RED</div>
           <div class="graph-wrap">
-          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, iniciales, mapa_colores })}
+          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores })}
           </div>
         </div>
         <div class="matrix-column">
@@ -1054,7 +791,7 @@ function renderizar_pantalla_resultado() {
 
       <div class="result-grid">
         <div class="graph-wrap">
-          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, iniciales: estado.iniciales, mapa_colores })}
+          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores })}
         </div>
         <div>${cards}</div>
       </div>
@@ -1069,15 +806,13 @@ function renderizar_pantalla_resultado() {
 /* Muestra la pantalla actual */
 function renderizar() {
     const app = document.getElementById("app");
+    const renderizar_pantalla = renderizadores_pantalla[estado.pantalla];
+    if (!renderizar_pantalla) {
+        throw new Error(`Pantalla desconocida: ${estado.pantalla}`);
+    }
+
     configuraciones_grafos = [];
-    if (estado.pantalla === "config")
-        app.innerHTML = renderizar_pantalla_configuracion();
-    else if (estado.pantalla === "manualBuild")
-        app.innerHTML = renderizar_pantalla_construccion();
-    else if (estado.pantalla === "algorithm")
-        app.innerHTML = renderizar_pantalla_algoritmo();
-    else if (estado.pantalla === "result")
-        app.innerHTML = renderizar_pantalla_resultado();
+    app.innerHTML = renderizar_pantalla();
 
     posicionar_grafos();
     if (
@@ -1092,76 +827,114 @@ function renderizar() {
     }
 }
 
-/* Interacciones de la página */
-document.addEventListener("click", (evento) => {
-    const t = evento.target.closest("[data-action]");
-    if (!t) return;
-    const action = t.dataset.action;
+function iniciar_exploracion() {
+    estado.nombres = obtener_nombres_red(estado.n);
 
-    if (["zoom-in", "zoom-out", "fit-network"].includes(action)) {
-        ajustar_vista_grafo(action, t);
-    } else if (action === "set-mode") {
-        estado.modo = t.dataset.value;
-        document.querySelectorAll('[data-action="set-mode"]').forEach((boton) => {
-            const esta_seleccionado = boton.dataset.value === estado.modo;
-            boton.classList.toggle("active", esta_seleccionado);
-            boton.setAttribute("aria-pressed", String(esta_seleccionado));
-        });
-    } else if (action === "start") {
-        estado.nombres = obtener_nombres_red(estado.n);
-        estado.iniciales = estado.nombres.map((nombre, indice) =>
-            indice < nombres_disponibles.length
-                ? nombre[0]
-                : String(indice + 1),
-        );
-        if (estado.modo === "manual") {
-            estado.matriz = crear_matriz_vacia(estado.n);
-            estado.nodo_seleccionado_arista = null;
-            estado.pantalla = "manualBuild";
-        } else {
-            estado.matriz = generar_matriz_aleatoria(estado.n);
-            ejecutar_algoritmo();
-            estado.paso_algoritmo = 0;
-            estado.pantalla = "algorithm";
-        }
-        renderizar();
-    } else if (action === "remove-edge") {
-        const i = parseInt(t.dataset.i, 10),
-            j = parseInt(t.dataset.j, 10);
-        estado.matriz[i][j] = 0;
-        estado.matriz[j][i] = 0;
+    if (estado.modo === "manual") {
+        estado.matriz = crear_matriz_vacia(estado.n);
         estado.nodo_seleccionado_arista = null;
-        actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
-    } else if (action === "clear-edges") {
+        estado.pantalla = "manualBuild";
+    } else {
+        estado.matriz = generar_matriz_aleatoria(estado.n);
+        ejecutar_algoritmo();
+        estado.pantalla = "algorithm";
+    }
+
+    estado.paso_algoritmo = 0;
+    renderizar();
+}
+
+function reiniciar_exploracion() {
+    const { n, modo } = estado;
+    estado = crear_estado_inicial();
+    estado.n = n;
+    estado.modo = modo;
+    renderizar();
+}
+
+function cambiar_modo(boton) {
+    estado.modo = boton.dataset.value;
+    document.querySelectorAll('[data-action="set-mode"]').forEach((opcion) => {
+        const esta_seleccionada = opcion.dataset.value === estado.modo;
+        opcion.classList.toggle("active", esta_seleccionada);
+        opcion.setAttribute("aria-pressed", String(esta_seleccionada));
+    });
+}
+
+function quitar_conexion(boton) {
+    const origen = Number(boton.dataset.i);
+    const destino = Number(boton.dataset.j);
+    if (
+        !Number.isInteger(origen) ||
+        !Number.isInteger(destino) ||
+        !estado.matriz[origen] ||
+        !estado.matriz[destino]
+    ) {
+        return;
+    }
+
+    estado.matriz[origen][destino] = 0;
+    estado.matriz[destino][origen] = 0;
+    estado.nodo_seleccionado_arista = null;
+    actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
+}
+
+function confirmar_red_manual() {
+    ejecutar_algoritmo();
+    estado.paso_algoritmo = 0;
+    estado.pantalla = "algorithm";
+    renderizar();
+}
+
+function avanzar_paso_algoritmo() {
+    if (estado.paso_algoritmo < ULTIMO_PASO_ALGORITMO) {
+        estado.paso_algoritmo++;
+        actualizar_pantalla_algoritmo();
+        return;
+    }
+
+    estado.pantalla = "result";
+    renderizar();
+}
+
+const acciones_interfaz = {
+    "zoom-in": (boton) => ajustar_vista_grafo("zoom-in", boton),
+    "zoom-out": (boton) => ajustar_vista_grafo("zoom-out", boton),
+    "fit-network": (boton) => ajustar_vista_grafo("fit-network", boton),
+    "set-mode": cambiar_modo,
+    start: iniciar_exploracion,
+    "remove-edge": quitar_conexion,
+    "clear-edges": () => {
         estado.matriz = crear_matriz_vacia(estado.n);
         estado.nodo_seleccionado_arista = null;
         actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
-    } else if (action === "confirm-manual") {
-        ejecutar_algoritmo();
-        estado.paso_algoritmo = 0;
-        estado.pantalla = "algorithm";
-        renderizar();
-    } else if (action === "algo-prev") {
-        if (estado.paso_algoritmo > 0) {
-            estado.paso_algoritmo--;
-            actualizar_pantalla_algoritmo();
-        }
-    } else if (action === "algo-next") {
-        if (estado.paso_algoritmo < 3) {
-            estado.paso_algoritmo++;
-            actualizar_pantalla_algoritmo();
-        } else {
-            estado.pantalla = "result";
-            renderizar();
-        }
-    } else if (action === "restart") {
-        const n = estado.n,
-            mode = estado.modo;
-        estado = crear_estado_inicial();
-        estado.n = n;
-        estado.modo = mode;
-        renderizar();
+    },
+    "confirm-manual": confirmar_red_manual,
+    "algo-prev": () => {
+        if (estado.paso_algoritmo === 0) return;
+        estado.paso_algoritmo--;
+        actualizar_pantalla_algoritmo();
+    },
+    "algo-next": avanzar_paso_algoritmo,
+    restart: reiniciar_exploracion,
+};
+
+document.addEventListener("click", (evento) => {
+    if (!(evento.target instanceof Element)) return;
+
+    const boton = evento.target.closest("[data-action]");
+    if (!boton) return;
+
+    if (
+        !Object.prototype.hasOwnProperty.call(
+            acciones_interfaz,
+            boton.dataset.action,
+        )
+    ) {
+        return;
     }
+
+    acciones_interfaz[boton.dataset.action](boton);
 });
 
 function obtener_instancia_grafo_manual() {
@@ -1188,17 +961,26 @@ function seleccionar_nodo_red(indice, instancia) {
 }
 
 document.addEventListener("input", (evento) => {
-    if (evento.target.dataset && evento.target.dataset.action === "set-n") {
-        estado.n = parseInt(evento.target.value, 10);
-        const porcentaje_relleno =
-            ((estado.n - 4) / (cantidad_maxima_usuarios - 4)) * 100;
-        evento.target.style.setProperty("--fill", porcentaje_relleno + "%");
-        const indicador_cantidad = document.querySelector(".count-display");
-        if (indicador_cantidad) {
-            indicador_cantidad.textContent = estado.n;
-        }
-        actualizar_vista_previa(estado.n);
+    if (
+        !(evento.target instanceof HTMLInputElement) ||
+        evento.target.dataset.action !== "set-n"
+    ) {
+        return;
     }
+
+    const cantidad = Number(evento.target.value);
+    if (
+        !Number.isInteger(cantidad) ||
+        cantidad < 4 ||
+        cantidad > CANTIDAD_MAXIMA_USUARIOS
+    ) {
+        return;
+    }
+
+    estado.n = cantidad;
+    evento.target.style.setProperty("--fill", `${calcular_porcentaje_red(cantidad)}%`);
+    document.querySelector(".count-display").textContent = cantidad;
+    actualizar_vista_previa(cantidad);
 });
 
 /* Inicia la aplicación */

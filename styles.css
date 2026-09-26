@@ -1209,7 +1209,9 @@ button.pill.active {
 }
 
 .preview-frame {
+    height: 420px;
     border: 1px solid rgba(103, 90, 158, 0.1);
+    transition: height 0.25s ease;
     background:
         radial-gradient(
             circle at 50% 50%,
@@ -1992,6 +1994,7 @@ table.matrix td.diag {
     }
 
     .preview-frame {
+        height: 320px;
         min-height: 320px;
     }
 

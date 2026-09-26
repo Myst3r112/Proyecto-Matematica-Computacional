@@ -121,6 +121,7 @@ let estado = null;
 let configuraciones_grafos = [];
 let instancias_grafos = [];
 let desplazamiento_suave = null;
+let distribucion_previsualizacion = null;
 
 function crear_estado_inicial() {
     return {
@@ -417,20 +418,45 @@ function crear_elementos_grafo(opciones) {
 
 function crear_opciones_distribucion(cantidad, etiquetas) {
     return {
-        name: cantidad > 24 ? "grid" : "cose",
-        rows: cantidad > 24 ? Math.ceil(Math.sqrt(cantidad)) : undefined,
+        name: "cose",
         animate: false,
-        fit: true,
+        fit: false,
         padding: etiquetas ? 32 : 42,
-        nodeRepulsion: cantidad > 50 ? 5000 : 8000,
-        idealEdgeLength: cantidad > 50 ? 34 : 52,
-        gravity: 0.35,
+        nodeRepulsion: cantidad > 50 ? 3500 : 8000,
+        idealEdgeLength: cantidad > 50 ? 38 : 52,
+        gravity: cantidad > 50 ? 0.22 : 0.35,
         numIter: cantidad > 50 ? 180 : 250,
         randomize: true,
     };
 }
 
+function ejecutar_distribucion(instancia, lienzo, opciones) {
+    const es_previsualizacion = opciones.previsualizacion === true;
+    if (es_previsualizacion) {
+        distribucion_previsualizacion?.stop();
+    }
+
+    const distribucion = instancia.layout(
+        crear_opciones_distribucion(
+            opciones.n,
+            opciones.n > cantidad_maxima_iniciales,
+        ),
+    );
+    if (es_previsualizacion) {
+        distribucion_previsualizacion = distribucion;
+    }
+
+    distribucion.one("layoutstop", () => {
+        const indice = Number(lienzo.dataset.networkIndex);
+        if (configuraciones_grafos[indice] !== opciones) return;
+        instancia.fit(instancia.elements(), opciones.n > 12 ? 32 : 42);
+    });
+    distribucion.run();
+}
+
 function posicionar_grafos() {
+    distribucion_previsualizacion?.stop();
+    distribucion_previsualizacion = null;
     instancias_grafos.forEach((instancia) => {
         instancia.stop();
         instancia.destroy();
@@ -452,10 +478,12 @@ function posicionar_grafos() {
         const cantidad = opciones.n;
         const etiquetas = cantidad > cantidad_maxima_iniciales;
         const marco = lienzo.closest(".network-frame");
-        marco.style.setProperty(
-            "--network-height",
-            `${Math.max(320, Math.min(580, 220 + Math.sqrt(cantidad) * 34))}px`,
-        );
+        if (!opciones.previsualizacion) {
+            marco.style.setProperty(
+                "--network-height",
+                `${Math.max(320, Math.min(580, 220 + Math.sqrt(cantidad) * 34))}px`,
+            );
+        }
 
         const tamano_nodo = cantidad > 70 ? 22 : cantidad > 40 ? 24 : 29;
         const instancia = window.cytoscape({
@@ -511,8 +539,10 @@ function posicionar_grafos() {
                     },
                 },
             ],
-            layout: crear_opciones_distribucion(cantidad, etiquetas),
+            layout: { name: "preset" },
         });
+        instancias_grafos.push(instancia);
+        ejecutar_distribucion(instancia, lienzo, opciones);
 
         instancia.on("tap", "node", (evento) => {
             const nodo = evento.target;
@@ -528,7 +558,6 @@ function posicionar_grafos() {
                 nodo.addClass("seleccionado");
             }
         });
-        instancias_grafos.push(instancia);
     });
 }
 
@@ -552,12 +581,7 @@ function actualizar_vista_previa(n) {
     };
     configuraciones_grafos[indice] = opciones;
     lienzo.setAttribute("aria-label", `Red social con ${n} personas`);
-    lienzo
-        .closest(".network-frame")
-        .style.setProperty(
-            "--network-height",
-            `${Math.max(320, Math.min(580, 220 + Math.sqrt(n) * 34))}px`,
-        );
+    distribucion_previsualizacion?.stop();
     instancia.elements().remove();
     instancia.add(crear_elementos_grafo(opciones));
     instancia.nodes().style({
@@ -565,9 +589,7 @@ function actualizar_vista_previa(n) {
         height: n > 70 ? 22 : n > 40 ? 24 : 29,
     });
     instancia.edges().style({ width: n > 50 ? 1 : 1.5 });
-    instancia.layout(
-        crear_opciones_distribucion(n, n > cantidad_maxima_iniciales),
-    ).run();
+    ejecutar_distribucion(instancia, lienzo, opciones);
 }
 
 function ajustar_vista_grafo(accion) {
@@ -589,6 +611,23 @@ function ajustar_vista_grafo(accion) {
         },
     });
 }
+
+window.addEventListener("resize", () => {
+    window.requestAnimationFrame(() => {
+        instancias_grafos.forEach((instancia) => instancia.resize());
+        const lienzo = document.querySelector(".preview-frame .network-canvas");
+        if (!lienzo) return;
+
+        const instancia =
+            instancias_grafos[Number(lienzo.dataset.networkIndex)];
+        if (instancia) {
+            instancia.fit(
+                instancia.elements(),
+                estado.n > cantidad_maxima_iniciales ? 32 : 42,
+            );
+        }
+    });
+});
 
 /* Construye una tabla para la matriz */
 function renderizar_tabla_matriz(

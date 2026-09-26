@@ -9,22 +9,105 @@ const nombres_disponibles = [
     "Gaby",
     "Hugo",
     "Iris",
-    "Jose",
+    "José",
     "Kira",
     "Luis",
+    "Abril",
+    "Adrián",
+    "Aitana",
+    "Alejandro",
+    "Alicia",
+    "Alonso",
+    "Amalia",
+    "Andrés",
+    "Ángel",
+    "Antonio",
+    "Ariadna",
+    "Arturo",
+    "Axel",
+    "Bárbara",
+    "Beatriz",
+    "Benjamín",
+    "Bianca",
+    "Bruno",
+    "Camila",
+    "Carlos",
+    "Catalina",
+    "Cecilia",
+    "César",
+    "Clara",
+    "Damián",
+    "Daniela",
+    "David",
+    "Diego",
+    "Elena",
+    "Emilia",
+    "Emilio",
+    "Emma",
+    "Enrique",
+    "Esteban",
+    "Eva",
+    "Fabián",
+    "Fernanda",
+    "Francisco",
+    "Gael",
+    "Gabriela",
+    "Inés",
+    "Iván",
+    "Javier",
+    "Jimena",
+    "Joaquín",
+    "Jorge",
+    "Julia",
+    "Julián",
+    "Laura",
+    "Leo",
+    "Leonor",
+    "Lucía",
+    "Manuel",
+    "Marcela",
+    "Marco",
+    "Mariana",
+    "Mateo",
+    "Matías",
+    "Maya",
+    "Miguel",
+    "Mía",
+    "Nicolás",
+    "Noa",
+    "Olivia",
+    "Óscar",
+    "Pablo",
+    "Paula",
+    "Pedro",
+    "Rafael",
+    "Renata",
+    "Rodrigo",
+    "Romina",
+    "Samuel",
+    "Sara",
+    "Sebastián",
+    "Sofía",
+    "Tomás",
+    "Valentina",
+    "Valeria",
+    "Vicente",
+    "Victoria",
+    "Xavier",
+    "Zoe",
+    "Agustín",
+    "Alma",
+    "Ana",
+    "Carolina",
+    "Diana",
 ];
-const colores_componentes = [
-    "#22D3C7",
-    "#FF8A5B",
-    "#C084FC",
-    "#FACC15",
-    "#60A5FA",
-    "#F472B6",
-    "#34D399",
-    "#FB7185",
-];
-const color_nodo_neutro = "#26314A";
-const borde_nodo = "#3E4E70";
+const cantidad_maxima_usuarios = 100;
+const cantidad_maxima_iniciales = 12;
+const colores_componentes = Array.from(
+    { length: cantidad_maxima_usuarios },
+    (_, indice) => generar_color_componente(indice),
+);
+const color_nodo_neutro = "#D9D1FF";
 const color_arista_neutra = "#3A4A66";
 
 const titulos_pasos = [
@@ -35,6 +118,9 @@ const titulos_pasos = [
 ];
 
 let estado = null;
+let configuraciones_grafos = [];
+let instancias_grafos = [];
+let desplazamiento_suave = null;
 
 function crear_estado_inicial() {
     return {
@@ -44,7 +130,6 @@ function crear_estado_inicial() {
         nombres: [],
         iniciales: [],
         matriz: [],
-        posiciones: [],
         nodo_seleccionado_arista: null,
         paso_algoritmo: 0,
         matriz_entrada_caminos: null,
@@ -61,29 +146,73 @@ function crear_matriz_vacia(n) {
     return Array.from({ length: n }, () => Array(n).fill(0));
 }
 
-function calcular_posiciones(n) {
-    const cx = 200,
-        cy = 200,
-        r = n <= 6 ? 128 : n <= 9 ? 145 : 158;
-    const pts = [];
-    for (let i = 0; i < n; i++) {
-        const angle = -Math.PI / 2 + i * ((2 * Math.PI) / n);
-        pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
-    }
-    return pts;
+function obtener_nombres_red(n) {
+    return Array.from({ length: n }, (_, indice) =>
+        indice < nombres_disponibles.length
+            ? nombres_disponibles[indice]
+            : `Persona ${indice + 1}`,
+    );
 }
 
 function generar_matriz_aleatoria(n) {
     const m = crear_matriz_vacia(n);
-    const p = Math.min(0.55, 1.35 / n);
-    for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-            if (Math.random() < p) {
-                m[i][j] = 1;
-                m[j][i] = 1;
+    const tamano_grupo_principal = Math.min(
+        Math.max(2, n - 2),
+        Math.max(2, Math.round(n * (0.6 + Math.random() * 0.16))),
+    );
+    const probabilidad_conexion_adicional = 0.06 + Math.random() * 0.08;
+    const tamanos_grupos = [tamano_grupo_principal];
+    let personas_restantes = n - tamano_grupo_principal;
+
+    while (personas_restantes > 0) {
+        if (personas_restantes <= 5) {
+            if (personas_restantes === 1) {
+                tamanos_grupos[tamanos_grupos.length - 1]++;
+            } else {
+                tamanos_grupos.push(personas_restantes);
+            }
+            break;
+        }
+
+        const tamano_maximo = Math.min(5, personas_restantes - 2);
+        const tamano_grupo =
+            2 + Math.floor(Math.random() * (tamano_maximo - 1));
+        tamanos_grupos.push(tamano_grupo);
+        personas_restantes -= tamano_grupo;
+    }
+
+    const personas = Array.from({ length: n }, (_, indice) => indice);
+    for (let indice = personas.length - 1; indice > 0; indice--) {
+        const otro_indice = Math.floor(Math.random() * (indice + 1));
+        [personas[indice], personas[otro_indice]] = [
+            personas[otro_indice],
+            personas[indice],
+        ];
+    }
+
+    let inicio_grupo = 0;
+    tamanos_grupos.forEach((tamano_grupo) => {
+        const grupo = personas.slice(inicio_grupo, inicio_grupo + tamano_grupo);
+        inicio_grupo += tamano_grupo;
+
+        for (let indice = 1; indice < grupo.length; indice++) {
+            const persona = grupo[indice];
+            const persona_conocida =
+                grupo[Math.floor(Math.random() * indice)];
+            m[persona][persona_conocida] = 1;
+            m[persona_conocida][persona] = 1;
+        }
+
+        for (let fila = 0; fila < grupo.length; fila++) {
+            for (let columna = fila + 1; columna < grupo.length; columna++) {
+                if (Math.random() < probabilidad_conexion_adicional) {
+                    m[grupo[fila]][grupo[columna]] = 1;
+                    m[grupo[columna]][grupo[fila]] = 1;
+                }
             }
         }
-    }
+    });
+
     return m;
 }
 
@@ -172,7 +301,7 @@ function ejecutar_algoritmo() {
 function crear_mapa_colores_componentes(components, n) {
     const map = new Array(n).fill(null);
     components.forEach((comp, ci) => {
-        const color = colores_componentes[ci % colores_componentes.length];
+        const color = obtener_color_componente(ci);
         comp.forEach((nodeIdx) => {
             map[nodeIdx] = color;
         });
@@ -180,56 +309,285 @@ function crear_mapa_colores_componentes(components, n) {
     return map;
 }
 
-/* Dibuja el grafo en SVG */
-function renderizar_grafo_svg(opciones) {
-    const {
-        n,
-        matriz,
-        posiciones,
-        nombres,
-        iniciales,
-        mapa_colores,
-        selected,
-        interactive,
-        size,
-    } = opciones;
-    const dim = size || 400;
-    let edges = "";
-    for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-            if (matriz[i][j]) {
-                const stroke = mapa_colores
-                    ? mapa_colores[i]
-                    : color_arista_neutra;
-                edges += `<line x1="${posiciones[i].x}" y1="${posiciones[i].y}" x2="${posiciones[j].x}" y2="${posiciones[j].y}" stroke="${stroke}" stroke-width="${mapa_colores ? 2.4 : 1.8}" stroke-linecap="round" opacity="${mapa_colores ? 0.9 : 0.75}"/>`;
+function obtener_color_componente(indice) {
+    return colores_componentes[indice % colores_componentes.length];
+}
+
+function generar_color_componente(indice) {
+    const matiz = (indice * 137.508) % 360;
+    const saturacion = 0.66 + (indice % 3) * 0.06;
+    const luminosidad = 0.46 + (Math.floor(indice / 3) % 3) * 0.045;
+    const c = (1 - Math.abs(2 * luminosidad - 1)) * saturacion;
+    const x = c * (1 - Math.abs(((matiz / 60) % 2) - 1));
+    const m = luminosidad - c / 2;
+    const [rojo, verde, azul] =
+        matiz < 60
+            ? [c, x, 0]
+            : matiz < 120
+              ? [x, c, 0]
+              : matiz < 180
+                ? [0, c, x]
+                : matiz < 240
+                  ? [0, x, c]
+                  : matiz < 300
+                    ? [x, 0, c]
+                    : [c, 0, x];
+    return `#${[rojo, verde, azul]
+        .map((valor) =>
+            Math.round((valor + m) * 255)
+                .toString(16)
+                .padStart(2, "0"),
+        )
+        .join("")}`;
+}
+
+/* Prepara los datos para mostrar la red interactiva */
+function renderizar_grafo(opciones) {
+    const indice = configuraciones_grafos.push(opciones) - 1;
+    const es_previsualizacion = opciones.previsualizacion === true;
+    return `
+        <div class="network-frame ${es_previsualizacion ? "preview-frame" : ""}">
+            <div class="network-canvas" data-network-index="${indice}" role="img" aria-label="Red social con ${opciones.n} personas"></div>
+            ${
+                es_previsualizacion
+                    ? `
+                <div class="network-controls" aria-label="Controles de la vista previa">
+                    <button type="button" data-action="zoom-in" aria-label="Acercar">+</button>
+                    <button type="button" data-action="zoom-out" aria-label="Alejar">−</button>
+                    <button type="button" data-action="fit-network" aria-label="Ver toda la red">⤢</button>
+                </div>
+                <div class="network-person" aria-live="polite">Selecciona un punto para ver quién es</div>
+            `
+                    : ""
+            }
+        </div>`;
+}
+
+function crear_elementos_grafo(opciones) {
+    const cantidad = opciones.n;
+    const etiquetas = cantidad > cantidad_maxima_iniciales;
+    const orden_colores = new Map();
+    const orden_nodos = Array.from(
+        { length: cantidad },
+        (_, indice) => indice,
+    );
+    if (opciones.mapa_colores) {
+        opciones.mapa_colores.forEach((color) => {
+            if (!orden_colores.has(color)) {
+                orden_colores.set(color, orden_colores.size);
+            }
+        });
+        orden_nodos.sort((a, b) => {
+            const color_a = opciones.mapa_colores[a];
+            const color_b = opciones.mapa_colores[b];
+            return orden_colores.get(color_a) - orden_colores.get(color_b);
+        });
+    }
+
+    const nodos = orden_nodos.map((indice) => ({
+        data: {
+            id: String(indice),
+            nombre: opciones.nombres[indice],
+            etiqueta: etiquetas
+                ? String(indice + 1)
+                : opciones.iniciales[indice],
+            color: opciones.mapa_colores?.[indice] ?? color_nodo_neutro,
+        },
+        classes: opciones.selected === indice ? "seleccionado" : "",
+    }));
+    const aristas = [];
+    for (let fila = 0; fila < cantidad; fila++) {
+        for (let columna = fila + 1; columna < cantidad; columna++) {
+            if (opciones.matriz[fila][columna]) {
+                aristas.push({
+                    data: {
+                        id: `${fila}-${columna}`,
+                        source: String(fila),
+                        target: String(columna),
+                        color:
+                            opciones.mapa_colores?.[fila] ??
+                            color_arista_neutra,
+                    },
+                });
             }
         }
     }
-    let nodes = "";
-    for (let i = 0; i < n; i++) {
-        const p = posiciones[i];
-        const fill = mapa_colores ? mapa_colores[i] : color_nodo_neutro;
-        const esta_seleccionado = selected === i;
-        const stroke = esta_seleccionado
-            ? "#FFFFFF"
-            : mapa_colores
-              ? "#0B1220"
-              : borde_nodo;
-        const sw = esta_seleccionado ? 3 : mapa_colores ? 2 : 1.5;
-        const color_texto = mapa_colores ? "#0B1220" : "var(--text)";
-        const atributos_accion = interactive
-            ? `data-action="pick-node" data-idx="${i}" style="cursor:pointer;"`
-            : "";
-        nodes += `
-      <g ${atributos_accion}>
-        <circle cx="${p.x}" cy="${p.y}" r="23" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
-        <text x="${p.x}" y="${p.y + 5}" text-anchor="middle" class="node-init" fill="${color_texto}">${iniciales[i]}</text>
-        <text x="${p.x}" y="${p.y + 38}" text-anchor="middle" class="node-label">${nombres[i]}</text>
-      </g>`;
+    return [...nodos, ...aristas];
+}
+
+function crear_opciones_distribucion(cantidad, etiquetas) {
+    return {
+        name: cantidad > 24 ? "grid" : "cose",
+        rows: cantidad > 24 ? Math.ceil(Math.sqrt(cantidad)) : undefined,
+        animate: false,
+        fit: true,
+        padding: etiquetas ? 32 : 42,
+        nodeRepulsion: cantidad > 50 ? 5000 : 8000,
+        idealEdgeLength: cantidad > 50 ? 34 : 52,
+        gravity: 0.35,
+        numIter: cantidad > 50 ? 180 : 250,
+        randomize: true,
+    };
+}
+
+function posicionar_grafos() {
+    instancias_grafos.forEach((instancia) => {
+        instancia.stop();
+        instancia.destroy();
+    });
+    instancias_grafos = [];
+
+    if (typeof window.cytoscape !== "function") {
+        document.querySelectorAll(".network-canvas").forEach((lienzo) => {
+            lienzo.textContent =
+                "No se pudo cargar el visor de redes. Revisa tu conexión a internet y vuelve a cargar la página.";
+            lienzo.classList.add("network-error");
+        });
+        return;
     }
-    return `<svg class="graph" viewBox="0 0 ${dim} ${dim}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grafo de la red social con ${n} usuarios">
-    ${edges}${nodes}
-  </svg>`;
+
+    document.querySelectorAll(".network-canvas").forEach((lienzo) => {
+        const opciones =
+            configuraciones_grafos[Number(lienzo.dataset.networkIndex)];
+        const cantidad = opciones.n;
+        const etiquetas = cantidad > cantidad_maxima_iniciales;
+        const marco = lienzo.closest(".network-frame");
+        marco.style.setProperty(
+            "--network-height",
+            `${Math.max(320, Math.min(580, 220 + Math.sqrt(cantidad) * 34))}px`,
+        );
+
+        const tamano_nodo = cantidad > 70 ? 22 : cantidad > 40 ? 24 : 29;
+        const instancia = window.cytoscape({
+            container: lienzo,
+            elements: crear_elementos_grafo(opciones),
+            minZoom: 0.08,
+            maxZoom: 3,
+            userZoomingEnabled: false,
+            userPanningEnabled: true,
+            boxSelectionEnabled: false,
+            selectionType: "single",
+            style: [
+                {
+                    selector: "node",
+                    style: {
+                        label: "data(etiqueta)",
+                        width: tamano_nodo,
+                        height: tamano_nodo,
+                        "background-color": "data(color)",
+                        "border-width": 1.5,
+                        "border-color": "#ffffff",
+                        color: "#25241f",
+                        "font-family": "Inter, sans-serif",
+                        "font-size": 10,
+                        "font-weight": 700,
+                        "text-valign": "center",
+                        "text-halign": "center",
+                        "text-outline-width": 0,
+                        "overlay-opacity": 0,
+                        "transition-property":
+                            "background-color, border-color, width, height",
+                        "transition-duration": 180,
+                    },
+                },
+                {
+                    selector: "node.seleccionado",
+                    style: {
+                        width: tamano_nodo + 8,
+                        height: tamano_nodo + 8,
+                        "border-width": 3,
+                        "border-color": "#6244e8",
+                        "z-index": 10,
+                    },
+                },
+                {
+                    selector: "edge",
+                    style: {
+                        width: cantidad > 50 ? 1 : 1.5,
+                        "line-color": "data(color)",
+                        opacity: 0.5,
+                        "curve-style": "bezier",
+                        "overlay-opacity": 0,
+                    },
+                },
+            ],
+            layout: crear_opciones_distribucion(cantidad, etiquetas),
+        });
+
+        instancia.on("tap", "node", (evento) => {
+            const nodo = evento.target;
+            lienzo
+                .closest(".network-frame")
+                ?.querySelector(".network-person")
+                ?.replaceChildren(document.createTextNode(nodo.data("nombre")));
+
+            if (opciones.interactive) {
+                seleccionar_nodo_red(Number(nodo.id()));
+            } else {
+                instancia.nodes().removeClass("seleccionado");
+                nodo.addClass("seleccionado");
+            }
+        });
+        instancias_grafos.push(instancia);
+    });
+}
+
+function actualizar_vista_previa(n) {
+    const lienzo = document.querySelector(".preview-frame .network-canvas");
+    if (!lienzo) return;
+
+    const indice = Number(lienzo.dataset.networkIndex);
+    const instancia = instancias_grafos[indice];
+    if (!instancia) return;
+
+    const matriz = obtener_matriz_previsualizacion(n);
+    const nombres = obtener_nombres_red(n);
+    const opciones = {
+        n,
+        matriz,
+        nombres,
+        iniciales: nombres.map((nombre) => nombre[0]),
+        mapa_colores: obtener_colores_previsualizacion(n),
+        previsualizacion: true,
+    };
+    configuraciones_grafos[indice] = opciones;
+    lienzo.setAttribute("aria-label", `Red social con ${n} personas`);
+    lienzo
+        .closest(".network-frame")
+        .style.setProperty(
+            "--network-height",
+            `${Math.max(320, Math.min(580, 220 + Math.sqrt(n) * 34))}px`,
+        );
+    instancia.elements().remove();
+    instancia.add(crear_elementos_grafo(opciones));
+    instancia.nodes().style({
+        width: n > 70 ? 22 : n > 40 ? 24 : 29,
+        height: n > 70 ? 22 : n > 40 ? 24 : 29,
+    });
+    instancia.edges().style({ width: n > 50 ? 1 : 1.5 });
+    instancia.layout(
+        crear_opciones_distribucion(n, n > cantidad_maxima_iniciales),
+    ).run();
+}
+
+function ajustar_vista_grafo(accion) {
+    const lienzo = document.querySelector(".preview-frame .network-canvas")
+        ?.dataset.networkIndex;
+    const instancia = instancias_grafos[Number(lienzo)];
+    if (!instancia) return;
+
+    if (accion === "fit-network") {
+        instancia.fit(undefined, 32);
+        return;
+    }
+
+    instancia.zoom({
+        level: instancia.zoom() * (accion === "zoom-in" ? 1.25 : 0.8),
+        renderedPosition: {
+            x: instancia.width() / 2,
+            y: instancia.height() / 2,
+        },
+    });
 }
 
 /* Construye una tabla para la matriz */
@@ -254,8 +612,7 @@ function renderizar_tabla_matriz(
                 const bi = opciones.bloque_de[i],
                     bj = opciones.bloque_de[j];
                 if (bi !== undefined && bi === bj && bi !== null) {
-                    const color =
-                        colores_componentes[bi % colores_componentes.length];
+                    const color = obtener_color_componente(bi);
                     style = `style="background:${hexadecimal_a_rgba(color, 0.16)}; color:${val ? color : "var(--text-muted)"};"`;
                 }
             }
@@ -276,7 +633,7 @@ function hexadecimal_a_rgba(hex, a) {
 /* Pantalla de configuración */
 function renderizar_pantalla_configuracion() {
     const n = estado.n;
-    const porcentaje_relleno = ((n - 4) / (12 - 4)) * 100;
+    const porcentaje_relleno = ((n - 4) / (cantidad_maxima_usuarios - 4)) * 100;
     return `
         <section class="screen screen-config">
             <div class="hero-copy">
@@ -288,16 +645,16 @@ function renderizar_pantalla_configuracion() {
             <div class="panel config-panel">
                 <div class="config-grid">
                     <div class="config-controls">
-                        <div class="section-kicker"><span>01</span> TAMAÑO DE LA RED</div>
+                        <div class="section-kicker">TAMAÑO DE LA RED</div>
                         <div class="count-row">
                             <div class="count-display">${n}</div>
                             <div class="count-slider">
-                                <input aria-label="Cantidad de personas" type="range" min="4" max="12" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
-                                <div class="range-labels"><span>4 personas</span><span>12 personas</span></div>
+                                <input aria-label="Cantidad de personas" type="range" min="4" max="${cantidad_maxima_usuarios}" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
+                                <div class="range-labels"><span>4</span><span>${cantidad_maxima_usuarios}</span></div>
                             </div>
                         </div>
 
-                        <div class="section-kicker mode-kicker"><span>02</span> ¿CÓMO EMPEZAMOS?</div>
+                        <div class="section-kicker mode-kicker">¿CÓMO EMPEZAMOS?</div>
                         <div class="pill-group">
                             <button type="button" class="pill ${estado.modo === "aleatorio" ? "active" : ""}" data-action="set-mode" data-value="aleatorio" aria-pressed="${estado.modo === "aleatorio"}">
                                 <span class="pill-icon">✦</span>
@@ -319,40 +676,37 @@ function renderizar_pantalla_configuracion() {
                     <div class="preview-card">
                         <div class="preview-heading"><span>VISTA PREVIA</span><span class="live-indicator">EN VIVO</span></div>
                         <div class="preview-box">
-                            ${renderizar_grafo_svg({
-                                n: Math.min(n, 8),
-                                matriz: obtener_matriz_previsualizacion(
-                                    Math.min(n, 8),
+                            ${renderizar_grafo({
+                                n,
+                                matriz: obtener_matriz_previsualizacion(n),
+                                nombres: obtener_nombres_red(n),
+                                iniciales: obtener_nombres_red(n).map(
+                                    (nombre) => nombre[0],
                                 ),
-                                posiciones: calcular_posiciones(Math.min(n, 8)),
-                                nombres: nombres_disponibles.slice(
-                                    0,
-                                    Math.min(n, 8),
-                                ),
-                                iniciales: nombres_disponibles
-                                    .slice(0, Math.min(n, 8))
-                                    .map((s) => s[0]),
-                                mapa_colores: obtener_colores_previsualizacion(
-                                    Math.min(n, 8),
-                                ),
+                                mapa_colores:
+                                    obtener_colores_previsualizacion(n),
+                                previsualizacion: true,
                             })}
                         </div>
                         <div class="preview-foot"><span class="preview-symbol">↗</span><span>Un grupo aparece cuando todos<br />pueden llegar entre sí.</span></div>
                     </div>
                 </div>
             </div>
-            <div class="home-footnote"><span>01 — 04</span><span>AJUSTA · ELIGE · DESCUBRE</span></div>
         </section>`;
 }
 
-let _previewMatrixCache = null,
-    _previewMatrixN = null;
+let matriz_previsualizacion_cache = null;
+let tamano_matriz_previsualizacion_cache = null;
 function obtener_matriz_previsualizacion(n) {
-    if (_previewMatrixCache && _previewMatrixN === n)
-        return _previewMatrixCache;
-    _previewMatrixN = n;
-    _previewMatrixCache = generar_matriz_aleatoria(n);
-    return _previewMatrixCache;
+    if (
+        matriz_previsualizacion_cache &&
+        tamano_matriz_previsualizacion_cache === n
+    ) {
+        return matriz_previsualizacion_cache;
+    }
+    tamano_matriz_previsualizacion_cache = n;
+    matriz_previsualizacion_cache = generar_matriz_aleatoria(n);
+    return matriz_previsualizacion_cache;
 }
 function obtener_colores_previsualizacion(n) {
     const wd = agregar_diagonal(obtener_matriz_previsualizacion(n), n);
@@ -397,16 +751,16 @@ function renderizar_pantalla_construccion() {
                             }
                         </div>
                         <div class="graph-wrap">
-                            ${renderizar_grafo_svg({
-                                n,
-                                matriz: estado.matriz,
-                                posiciones: estado.posiciones,
-                                nombres: estado.nombres,
-                                iniciales: estado.iniciales,
-                                mapa_colores: null,
-                                selected: estado.nodo_seleccionado_arista,
-                                interactive: true,
-                            })}
+                                        ${renderizar_grafo({
+                                            n,
+                                            matriz: estado.matriz,
+                                            nombres: estado.nombres,
+                                            iniciales: estado.iniciales,
+                                            mapa_colores: null,
+                                            selected:
+                                                estado.nodo_seleccionado_arista,
+                                            interactive: true,
+                                        })}
                         </div>
                         <div class="stat-line">
                             <span><b>${n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${count}</b> CONEXIONES</span>
@@ -434,7 +788,7 @@ function renderizar_puntos_pasos() {
             if (i === estado.paso_algoritmo) cls += " active";
             else if (i < estado.paso_algoritmo) cls += " done";
             const nombres_cortos = ["Amistades", "Alcance", "Orden", "Grupos"];
-            return `<div class="${cls}"><span class="sd-n">${String(i + 1).padStart(2, "0")}</span><span class="sd-t">${nombres_cortos[i]}</span></div>`;
+            return `<div class="${cls}" aria-current="${i === estado.paso_algoritmo ? "step" : "false"}"><span class="sd-t">${nombres_cortos[i]}</span></div>`;
         })
         .join("");
 }
@@ -505,18 +859,17 @@ function renderizar_pantalla_algoritmo() {
         <div class="algorithm-graph">
           <div class="section-kicker">TU RED</div>
           <div class="graph-wrap">
-            ${renderizar_grafo_svg({ n, matriz: estado.matriz, posiciones: estado.posiciones, nombres: estado.nombres, iniciales, mapa_colores })}
+          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, iniciales, mapa_colores })}
           </div>
         </div>
         <div class="matrix-column">
-          <div class="matrix-heading"><span class="section-kicker">PASO ${String(estado.paso_algoritmo + 1).padStart(2, "0")}</span><span class="matrix-explainer">${explicacion}</span></div>
+          <div class="matrix-heading"><span class="matrix-explainer">${explicacion}</span></div>
           ${html_matriz_cuerpo}
         </div>
       </div>
 
       <div class="algo-nav">
         <button class="btn btn-ghost" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Atrás</button>
-        <span class="count"><b>${String(estado.paso_algoritmo + 1).padStart(2, "0")}</b> / 04</span>
         <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === 3 ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>
       </div>
     </div>
@@ -529,7 +882,7 @@ function renderizar_pantalla_resultado() {
     const mapa_colores = crear_mapa_colores_componentes(estado.componentes, n);
     let cards = estado.componentes
         .map((comp, ci) => {
-            const color = colores_componentes[ci % colores_componentes.length];
+            const color = obtener_color_componente(ci);
             const chips = comp
                 .map(
                     (idx) =>
@@ -559,7 +912,7 @@ function renderizar_pantalla_resultado() {
 
       <div class="result-grid">
         <div class="graph-wrap">
-          ${renderizar_grafo_svg({ n, matriz: estado.matriz, posiciones: estado.posiciones, nombres: estado.nombres, iniciales: estado.iniciales, mapa_colores })}
+          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, iniciales: estado.iniciales, mapa_colores })}
         </div>
         <div>${cards}</div>
       </div>
@@ -574,6 +927,7 @@ function renderizar_pantalla_resultado() {
 /* Muestra la pantalla actual */
 function renderizar() {
     const app = document.getElementById("app");
+    configuraciones_grafos = [];
     if (estado.pantalla === "config")
         app.innerHTML = renderizar_pantalla_configuracion();
     else if (estado.pantalla === "manualBuild")
@@ -582,21 +936,42 @@ function renderizar() {
         app.innerHTML = renderizar_pantalla_algoritmo();
     else if (estado.pantalla === "result")
         app.innerHTML = renderizar_pantalla_resultado();
+
+    posicionar_grafos();
+    if (
+        window.gsap &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+        window.gsap.fromTo(
+            ".screen",
+            { autoAlpha: 0, y: 10 },
+            { autoAlpha: 1, y: 0, duration: 0.4, ease: "power2.out" },
+        );
+    }
 }
 
 /* Interacciones de la página */
-document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-action]");
+document.addEventListener("click", (evento) => {
+    const t = evento.target.closest("[data-action]");
     if (!t) return;
     const action = t.dataset.action;
 
-    if (action === "set-mode") {
+    if (["zoom-in", "zoom-out", "fit-network"].includes(action)) {
+        ajustar_vista_grafo(action);
+    } else if (action === "set-mode") {
         estado.modo = t.dataset.value;
-        renderizar();
+        document.querySelectorAll('[data-action="set-mode"]').forEach((boton) => {
+            const esta_seleccionado = boton.dataset.value === estado.modo;
+            boton.classList.toggle("active", esta_seleccionado);
+            boton.setAttribute("aria-pressed", String(esta_seleccionado));
+        });
     } else if (action === "start") {
-        estado.nombres = nombres_disponibles.slice(0, estado.n);
-        estado.iniciales = estado.nombres.map((s) => s[0]);
-        estado.posiciones = calcular_posiciones(estado.n);
+        estado.nombres = obtener_nombres_red(estado.n);
+        estado.iniciales = estado.nombres.map((nombre, indice) =>
+            indice < nombres_disponibles.length
+                ? nombre[0]
+                : String(indice + 1),
+        );
         if (estado.modo === "manual") {
             estado.matriz = crear_matriz_vacia(estado.n);
             estado.nodo_seleccionado_arista = null;
@@ -606,20 +981,6 @@ document.addEventListener("click", (e) => {
             ejecutar_algoritmo();
             estado.paso_algoritmo = 0;
             estado.pantalla = "algorithm";
-        }
-        renderizar();
-    } else if (action === "pick-node") {
-        const idx = parseInt(t.closest("[data-idx]").dataset.idx, 10);
-        if (estado.nodo_seleccionado_arista === null) {
-            estado.nodo_seleccionado_arista = idx;
-        } else if (estado.nodo_seleccionado_arista === idx) {
-            estado.nodo_seleccionado_arista = null;
-        } else {
-            const a = estado.nodo_seleccionado_arista,
-                b = idx;
-            estado.matriz[a][b] = estado.matriz[a][b] ? 0 : 1;
-            estado.matriz[b][a] = estado.matriz[a][b];
-            estado.nodo_seleccionado_arista = null;
         }
         renderizar();
     } else if (action === "remove-edge") {
@@ -659,24 +1020,45 @@ document.addEventListener("click", (e) => {
     }
 });
 
+function seleccionar_nodo_red(indice) {
+    if (estado.nodo_seleccionado_arista === null) {
+        estado.nodo_seleccionado_arista = indice;
+    } else if (estado.nodo_seleccionado_arista === indice) {
+        estado.nodo_seleccionado_arista = null;
+    } else {
+        const origen = estado.nodo_seleccionado_arista;
+        estado.matriz[origen][indice] = estado.matriz[origen][indice] ? 0 : 1;
+        estado.matriz[indice][origen] = estado.matriz[origen][indice];
+        estado.nodo_seleccionado_arista = null;
+    }
+    renderizar();
+}
+
 document.addEventListener("input", (evento) => {
     if (evento.target.dataset && evento.target.dataset.action === "set-n") {
         estado.n = parseInt(evento.target.value, 10);
-        const porcentaje_relleno = ((estado.n - 4) / (12 - 4)) * 100;
+        const porcentaje_relleno =
+            ((estado.n - 4) / (cantidad_maxima_usuarios - 4)) * 100;
         evento.target.style.setProperty("--fill", porcentaje_relleno + "%");
         const indicador_cantidad = document.querySelector(".count-display");
         if (indicador_cantidad) {
             indicador_cantidad.textContent = estado.n;
         }
-    }
-});
-
-document.addEventListener("change", (evento) => {
-    if (evento.target.dataset && evento.target.dataset.action === "set-n") {
-        renderizar();
+        actualizar_vista_previa(estado.n);
     }
 });
 
 /* Inicia la aplicación */
 estado = crear_estado_inicial();
 renderizar();
+
+if (
+    window.Lenis &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+) {
+    desplazamiento_suave = new window.Lenis({
+        autoRaf: true,
+        anchors: true,
+        smoothWheel: true,
+    });
+}

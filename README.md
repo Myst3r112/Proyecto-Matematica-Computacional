@@ -17,3 +17,16 @@ matrices de adyacencia y caminos.
 
 Abre `index.html` en un navegador con conexión a internet. Cytoscape, GSAP,
 Lenis y las fuentes se cargan desde servicios CDN.
+
+## Página web
+
+La aplicación está publicada en GitHub Pages y puedes probarla directamente
+desde tu navegador. Haz clic en el logo para abrirla:
+
+<p align="center">
+  <a href="https://myst3r112.github.io/Proyecto-Matematica-Computacional/" title="Abrir Coonectowski">
+    <img src="./img/Logo_web.png" alt="Abrir la aplicación Coonectowski" width="120">
+  </a>
+</p>
+
+Enlace directo: [Abrir Coonectowski](https://myst3r112.github.io/Proyecto-Matematica-Computacional/).

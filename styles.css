@@ -81,6 +81,9 @@ button {
     gap: 16px;
     padding: 22px clamp(16px, 4vw, 40px) 14px;
     max-width: 1180px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     margin: 0 auto;
 }
 .brand {
@@ -842,19 +845,30 @@ p.hero-sub {
 }
 
 .config-panel {
-    max-width: 1060px;
+    width: 100%;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: clamp(22px, 4vw, 48px);
+    padding: clamp(20px, 3.5vw, 42px);
 }
 
 .config-grid {
-    grid-template-columns: 0.9fr 1.1fr;
-    align-items: center;
-    gap: clamp(30px, 6vw, 76px);
+    grid-template-columns: minmax(280px, 0.88fr) minmax(0, 1.12fr);
+    align-items: stretch;
+    gap: clamp(24px, 4vw, 54px);
+}
+
+@media (max-width: 920px) {
+    .config-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .config-controls {
-    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    padding: 16px 0;
 }
 
 .section-kicker {
@@ -870,14 +884,15 @@ p.hero-sub {
 }
 
 .count-row {
-    gap: 18px;
-    margin: 22px 0 6px;
+    gap: clamp(12px, 2vw, 18px);
+    margin: 20px 0 8px;
 }
 
 .count-display {
-    width: 112px;
+    width: clamp(76px, 8vw, 112px);
+    flex: 0 0 auto;
     color: var(--text);
-    font-size: 62px;
+    font-size: clamp(50px, 5vw, 62px);
     line-height: 1;
     letter-spacing: -4px;
     text-align: left;
@@ -926,11 +941,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .mode-kicker {
-    margin-top: 35px;
+    margin-top: clamp(22px, 3vw, 32px);
 }
 
 .pill-group {
-    gap: 9px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     margin-top: 13px;
 }
 
@@ -938,8 +955,9 @@ button.pill {
     display: grid;
     grid-template-columns: 38px 1fr 18px;
     align-items: center;
+    min-width: 0;
     gap: 10px;
-    min-height: 68px;
+    min-height: 72px;
     padding: 10px 12px;
     border: 1px solid #e9e5dc;
     border-radius: 15px;
@@ -1051,7 +1069,7 @@ button.pill.active {
     display: flex;
     width: 100%;
     justify-content: space-between;
-    margin-top: 21px;
+    margin-top: 20px;
     padding: 13px 17px 13px 20px;
     font-size: 13px;
 }
@@ -1082,6 +1100,9 @@ button.pill.active {
 .preview-card {
     position: relative;
     overflow: hidden;
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
     padding: 17px 18px 14px;
     border: 1px solid #e9e5dc;
     border-radius: 20px;
@@ -1125,6 +1146,7 @@ button.pill.active {
 }
 
 .preview-box {
+    min-width: 0;
     padding: 9px 5px 2px;
 }
 
@@ -1184,10 +1206,11 @@ button.pill.active {
 
 .network-person {
     position: absolute;
-    right: 10px;
     bottom: 10px;
-    left: 10px;
+    left: 50%;
     z-index: 2;
+    width: fit-content;
+    max-width: calc(100% - 20px);
     min-height: 32px;
     padding: 8px 11px;
     border: 1px solid rgba(83, 75, 59, 0.09);
@@ -1195,7 +1218,11 @@ button.pill.active {
     background: rgba(255, 254, 250, 0.94);
     color: #77746c;
     font-size: 10px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
     pointer-events: none;
+    text-align: center;
+    transform: translateX(-50%);
 }
 
 .network-error {
@@ -1209,6 +1236,8 @@ button.pill.active {
 }
 
 .preview-frame {
+    width: 100%;
+    min-width: 0;
     height: 420px;
     border: 1px solid rgba(103, 90, 158, 0.1);
     transition: height 0.25s ease;
@@ -1226,8 +1255,6 @@ button.pill.active {
 }
 
 .preview-frame .network-person {
-    right: auto;
-    max-width: calc(100% - 150px);
     color: #615b76;
 }
 
@@ -1659,6 +1686,23 @@ svg.graph g[data-action="pick-node"] circle {
     color: var(--accent);
 }
 
+.matrix-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: -4px 0 9px;
+    color: #99968c;
+    font-size: 9px;
+}
+
+.matrix-meta span:first-child {
+    flex: none;
+    color: #716b63;
+    font-family: var(--mono);
+    font-weight: 700;
+}
+
 .matrix-explainer {
     min-height: 31px;
     color: #77766e;
@@ -1671,10 +1715,17 @@ svg.graph g[data-action="pick-node"] circle {
 }
 
 .matrix-scroll {
+    max-width: 100%;
+    max-height: min(62vh, 620px);
+    overflow: auto;
+    overscroll-behavior: contain;
     border: 1px solid #ebe7df;
     border-radius: 10px;
     background: #fffefa;
     padding: 7px;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    touch-action: pan-x pan-y;
 }
 
 table.matrix th,
@@ -1683,6 +1734,23 @@ table.matrix td {
     height: clamp(23px, 3.3vw, 31px);
     border-color: #efede8;
     font-size: 10px;
+}
+
+table.matrix thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+table.matrix tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+table.matrix thead th:first-child {
+    left: 0;
+    z-index: 3;
 }
 
 table.matrix thead th,
@@ -1702,6 +1770,22 @@ table.matrix td.one {
 table.matrix td.diag {
     background: #fce9df;
     color: #e37d59;
+}
+
+table.matrix-medium th,
+table.matrix-medium td {
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    font-size: 9px;
+}
+
+table.matrix-large th,
+table.matrix-large td {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 8px;
 }
 
 .algo-nav {
@@ -1831,16 +1915,23 @@ table.matrix td.diag {
     }
 
     .config-grid {
-        grid-template-columns: 1fr;
-        gap: 26px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 24px;
     }
 
     .config-controls {
+        width: 100%;
+        max-width: 560px;
+        justify-self: center;
+        margin: 0 auto;
         padding: 0;
     }
 
     .preview-card {
+        width: 100%;
         max-width: 520px;
+        min-width: 0;
+        justify-self: center;
         margin: 0 auto;
     }
 
@@ -1898,37 +1989,38 @@ table.matrix td.diag {
     }
 
     .config-panel {
-        padding: 20px;
+        padding: 18px;
     }
 
     .count-display {
-        width: 102px;
-        font-size: 55px;
+        width: 84px;
+        font-size: 52px;
     }
 
     .pill-group {
-        gap: 7px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
     }
 
     button.pill {
-        grid-template-columns: 31px 1fr 14px;
-        gap: 7px;
-        min-height: 63px;
-        padding: 8px;
+        grid-template-columns: 36px minmax(0, 1fr) 18px;
+        gap: 10px;
+        min-height: 62px;
+        padding: 9px 11px;
     }
 
     .pill-icon {
-        width: 31px;
-        height: 31px;
+        width: 34px;
+        height: 34px;
         border-radius: 10px;
     }
 
     .pill-title {
-        font-size: 10px;
+        font-size: 11px;
     }
 
     .pill-desc {
-        font-size: 8px;
+        font-size: 9px;
     }
 
     .screen-heading {
@@ -1982,6 +2074,15 @@ table.matrix td.diag {
         padding: 10px;
     }
 
+    .matrix-scroll {
+        max-height: 52vh;
+        padding: 4px;
+    }
+
+    .matrix-meta {
+        font-size: 8px;
+    }
+
     .algo-nav .btn {
         min-height: 39px;
         gap: 4px;
@@ -1996,6 +2097,14 @@ table.matrix td.diag {
     .preview-frame {
         height: 320px;
         min-height: 320px;
+    }
+
+    .preview-card {
+        padding: 15px 14px 12px;
+    }
+
+    .preview-box {
+        padding: 8px 0 2px;
     }
 
     .network-controls button {

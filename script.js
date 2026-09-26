@@ -345,22 +345,15 @@ function generar_color_componente(indice) {
 /* Prepara los datos para mostrar la red interactiva */
 function renderizar_grafo(opciones) {
     const indice = configuraciones_grafos.push(opciones) - 1;
-    const es_previsualizacion = opciones.previsualizacion === true;
     return `
-        <div class="network-frame ${es_previsualizacion ? "preview-frame" : ""}">
+        <div class="network-frame ${opciones.previsualizacion ? "preview-frame" : ""}">
             <div class="network-canvas" data-network-index="${indice}" role="img" aria-label="Red social con ${opciones.n} personas"></div>
-            ${
-                es_previsualizacion
-                    ? `
-                <div class="network-controls" aria-label="Controles de la vista previa">
-                    <button type="button" data-action="zoom-in" aria-label="Acercar">+</button>
-                    <button type="button" data-action="zoom-out" aria-label="Alejar">−</button>
-                    <button type="button" data-action="fit-network" aria-label="Ver toda la red">⤢</button>
-                </div>
-                <div class="network-person" aria-live="polite">Selecciona un punto para ver quién es</div>
-            `
-                    : ""
-            }
+            <div class="network-controls" aria-label="Controles de la red">
+                <button type="button" data-action="zoom-in" aria-label="Acercar">+</button>
+                <button type="button" data-action="zoom-out" aria-label="Alejar">−</button>
+                <button type="button" data-action="fit-network" aria-label="Ver toda la red">⤢</button>
+            </div>
+            <div class="network-person" aria-live="polite">Selecciona un punto para ver quién es</div>
         </div>`;
 }
 
@@ -491,7 +484,7 @@ function posicionar_grafos() {
             elements: crear_elementos_grafo(opciones),
             minZoom: 0.08,
             maxZoom: 3,
-            userZoomingEnabled: false,
+            userZoomingEnabled: true,
             userPanningEnabled: true,
             boxSelectionEnabled: false,
             selectionType: "single",
@@ -552,7 +545,7 @@ function posicionar_grafos() {
                 ?.replaceChildren(document.createTextNode(nodo.data("nombre")));
 
             if (opciones.interactive) {
-                seleccionar_nodo_red(Number(nodo.id()));
+                seleccionar_nodo_red(Number(nodo.id()), instancia);
             } else {
                 instancia.nodes().removeClass("seleccionado");
                 nodo.addClass("seleccionado");
@@ -592,14 +585,18 @@ function actualizar_vista_previa(n) {
     ejecutar_distribucion(instancia, lienzo, opciones);
 }
 
-function ajustar_vista_grafo(accion) {
-    const lienzo = document.querySelector(".preview-frame .network-canvas")
-        ?.dataset.networkIndex;
-    const instancia = instancias_grafos[Number(lienzo)];
+function ajustar_vista_grafo(accion, control) {
+    const lienzo = control.closest(".network-frame")?.querySelector(".network-canvas");
+    if (!lienzo) return;
+
+    const instancia = instancias_grafos[Number(lienzo.dataset.networkIndex)];
     if (!instancia) return;
 
     if (accion === "fit-network") {
-        instancia.fit(undefined, 32);
+        instancia.fit(
+            instancia.elements(),
+            lienzo.closest(".preview-frame") ? 32 : 42,
+        );
         return;
     }
 
@@ -638,7 +635,8 @@ function renderizar_tabla_matriz(
 ) {
     opciones = opciones || {};
     const n = matrix.length;
-    let encabezado_tabla = `<encabezado_tabla><tr><th></th>${etiquetas_columnas.map((l) => `<th>${l}</th>`).join("")}</tr></encabezado_tabla>`;
+    const tamano = n > 50 ? "large" : n > 24 ? "medium" : "small";
+    let encabezado_tabla = `<thead><tr><th></th>${etiquetas_columnas.map((l) => `<th scope="col">${l}</th>`).join("")}</tr></thead>`;
     let rows = "";
     for (let i = 0; i < n; i++) {
         let cells = "";
@@ -657,9 +655,9 @@ function renderizar_tabla_matriz(
             }
             cells += `<td class="${cls}" ${style}>${val}</td>`;
         }
-        rows += `<tr><th>${etiquetas_filas[i]}</th>${cells}</tr>`;
+        rows += `<tr><th scope="row">${etiquetas_filas[i]}</th>${cells}</tr>`;
     }
-    return `<div class="matrix-scroll"><table class="matrix">${encabezado_tabla}<tbody>${rows}</tbody></table></div>`;
+    return `<div class="matrix-scroll matrix-scroll-${tamano}" tabindex="0" role="region" aria-label="Matriz de ${n} por ${n}; desplázate para recorrer sus datos"><table class="matrix matrix-${tamano}">${encabezado_tabla}<tbody>${rows}</tbody></table></div>`;
 }
 
 function hexadecimal_a_rgba(hex, a) {
@@ -759,18 +757,8 @@ function obtener_colores_previsualizacion(n) {
 /* Pantalla para armar la red */
 function renderizar_pantalla_construccion() {
     const n = estado.n;
-    let chips_aristas = "";
-    let count = 0;
-    for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-            if (estado.matriz[i][j]) {
-                count++;
-                chips_aristas += `<span class="edge-chip">${estado.nombres[i]} ↔ ${estado.nombres[j]} <button data-action="remove-edge" data-i="${i}" data-j="${j}" aria-label="Quitar conexión">×</button></span>`;
-            }
-        }
-    }
-    if (!chips_aristas)
-        chips_aristas = `<div class="empty-state"><span class="empty-icon">⌘</span><span>Tu red empieza aquí.<br /><b>Elige dos personas</b> para conectar.</span></div>`;
+    const conexiones = obtener_conexiones_manuales();
+    const count = conexiones.cantidad;
 
     return `
         <section class="screen">
@@ -783,11 +771,7 @@ function renderizar_pantalla_construccion() {
                     <div class="graph-column">
                         <div class="hint-box">
                             <span class="hint-pulse"></span>
-                            ${
-                                estado.nodo_seleccionado_arista === null
-                                    ? "Toca dos personas para unirlas"
-                                    : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> elegida · toca a otra`
-                            }
+                            <span class="hint-copy">${obtener_texto_indicacion_manual()}</span>
                         </div>
                         <div class="graph-wrap">
                                         ${renderizar_grafo({
@@ -806,9 +790,7 @@ function renderizar_pantalla_construccion() {
                         </div>
                     </div>
                     <aside class="connections-panel">
-                        <div class="connections-heading"><div><span class="section-kicker">TU CÍRCULO</span><h2>Conexiones</h2></div><span class="connection-count">${count}</span></div>
-                        <div class="edge-chip-row">${chips_aristas}</div>
-                        ${count > 0 ? `<button class="text-button" data-action="clear-edges">Borrar todas <span>×</span></button>` : ""}
+                        ${conexiones.html}
                     </aside>
                 </div>
                 <div class="workspace-actions">
@@ -817,6 +799,84 @@ function renderizar_pantalla_construccion() {
                 </div>
             </div>
         </section>`;
+}
+
+function obtener_conexiones_manuales() {
+    const conexiones = [];
+    for (let fila = 0; fila < estado.n; fila++) {
+        for (let columna = fila + 1; columna < estado.n; columna++) {
+            if (estado.matriz[fila][columna]) {
+                conexiones.push(
+                    `<span class="edge-chip">${estado.nombres[fila]} ↔ ${estado.nombres[columna]} <button data-action="remove-edge" data-i="${fila}" data-j="${columna}" aria-label="Quitar conexión">×</button></span>`,
+                );
+            }
+        }
+    }
+
+    const lista_conexiones = conexiones.length
+        ? conexiones.join("")
+        : `<div class="empty-state"><span class="empty-icon">⌘</span><span>Tu red empieza aquí.<br /><b>Elige dos personas</b> para conectar.</span></div>`;
+    return {
+        cantidad: conexiones.length,
+        html: `<div class="connections-heading"><div><span class="section-kicker">TU CÍRCULO</span><h2>Conexiones</h2></div><span class="connection-count">${conexiones.length}</span></div><div class="edge-chip-row">${lista_conexiones}</div>${conexiones.length ? `<button class="text-button" data-action="clear-edges">Borrar todas <span>×</span></button>` : ""}`,
+    };
+}
+
+function obtener_texto_indicacion_manual() {
+    return estado.nodo_seleccionado_arista === null
+        ? "Toca dos personas para unirlas"
+        : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> elegida · toca a otra`;
+}
+
+function actualizar_interfaz_construccion(instancia) {
+    const indicacion = document.querySelector(".hint-copy");
+    const resumen = document.querySelector(".stat-line");
+    const panel_conexiones = document.querySelector(".connections-panel");
+    if (!indicacion || !resumen || !panel_conexiones) return;
+
+    const lienzo = document.querySelector(".graph-column .network-canvas");
+    if (lienzo) {
+        configuraciones_grafos[Number(lienzo.dataset.networkIndex)].matriz =
+            estado.matriz;
+    }
+    indicacion.innerHTML = obtener_texto_indicacion_manual();
+    const cantidad_conexiones = obtener_conexiones_manuales().cantidad;
+    resumen.innerHTML = `<span><b>${estado.n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${cantidad_conexiones}</b> CONEXIONES</span>`;
+    panel_conexiones.innerHTML = obtener_conexiones_manuales().html;
+    if (!instancia) return;
+
+    instancia.nodes().forEach((nodo) => {
+        nodo.toggleClass(
+            "seleccionado",
+            Number(nodo.id()) === estado.nodo_seleccionado_arista,
+        );
+    });
+
+    const aristas_actuales = new Set(
+        instancia.edges().map((arista) => arista.id()),
+    );
+    const aristas_deseadas = new Set();
+    for (let fila = 0; fila < estado.n; fila++) {
+        for (let columna = fila + 1; columna < estado.n; columna++) {
+            if (!estado.matriz[fila][columna]) continue;
+
+            const id = `${fila}-${columna}`;
+            aristas_deseadas.add(id);
+            if (!aristas_actuales.has(id)) {
+                instancia.add({
+                    data: {
+                        id,
+                        source: String(fila),
+                        target: String(columna),
+                        color: color_arista_neutra,
+                    },
+                });
+            }
+        }
+    }
+    instancia.edges().forEach((arista) => {
+        if (!aristas_deseadas.has(arista.id())) arista.remove();
+    });
 }
 
 /* Explicación del algoritmo paso a paso */
@@ -832,7 +892,7 @@ function renderizar_puntos_pasos() {
         .join("");
 }
 
-function renderizar_pantalla_algoritmo() {
+function obtener_contenido_paso_algoritmo() {
     const n = estado.n;
     const iniciales = estado.iniciales;
     const iniciales_ordenadas = estado.orden.map((i) => iniciales[i]);
@@ -880,15 +940,58 @@ function renderizar_pantalla_algoritmo() {
         );
     }
 
-    const mapa_colores =
-        estado.paso_algoritmo === 3
-            ? crear_mapa_colores_componentes(estado.componentes, n)
-            : null;
+    const mapa_colores = estado.paso_algoritmo === 3
+        ? crear_mapa_colores_componentes(estado.componentes, n)
+        : null;
+
+    return { explicacion, html_matriz_cuerpo, mapa_colores };
+}
+
+function renderizar_navegacion_algoritmo() {
+    return `
+        <button class="btn btn-ghost" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Atrás</button>
+        <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === 3 ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>`;
+}
+
+function actualizar_colores_grafo_algoritmo(mapa_colores) {
+    const lienzo = document.querySelector(".algorithm-graph .network-canvas");
+    if (!lienzo) return;
+
+    const instancia = instancias_grafos[Number(lienzo.dataset.networkIndex)];
+    if (!instancia) return;
+
+    instancia.nodes().forEach((nodo) => {
+        const indice = Number(nodo.id());
+        nodo.data("color", mapa_colores?.[indice] ?? color_nodo_neutro);
+    });
+    instancia.edges().forEach((arista) => {
+        const indice = Number(arista.source().id());
+        arista.data("color", mapa_colores?.[indice] ?? color_arista_neutra);
+    });
+}
+
+function actualizar_pantalla_algoritmo() {
+    const contenido = obtener_contenido_paso_algoritmo();
+    document.querySelector(".steps-nav").innerHTML = renderizar_puntos_pasos();
+    document.querySelector(".matrix-heading .matrix-explainer").innerHTML =
+        contenido.explicacion;
+    document.querySelector(".matrix-column .matrix-scroll").outerHTML =
+        contenido.html_matriz_cuerpo;
+    document.querySelector(".algo-nav").innerHTML =
+        renderizar_navegacion_algoritmo();
+    actualizar_colores_grafo_algoritmo(contenido.mapa_colores);
+}
+
+function renderizar_pantalla_algoritmo() {
+    const n = estado.n;
+    const iniciales = estado.iniciales;
+    const { explicacion, html_matriz_cuerpo, mapa_colores } =
+        obtener_contenido_paso_algoritmo();
 
     return `
   <section class="screen">
     <div class="screen-heading">
-      <div><span class="eyebrow"><span class="eyebrow-line"></span> ASÍ FUNCIONA</span><h1 class="page-title">Sigamos las conexiones.</h1></div>
+      <div><span class="eyebrow"><span class="eyebrow-line"></span> ASÍ FUNCIONA</span><h1 class="page-title">Sigamos las conexiones</h1></div>
       <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
     </div>
     <div class="panel workspace-panel algorithm-panel">
@@ -903,13 +1006,13 @@ function renderizar_pantalla_algoritmo() {
         </div>
         <div class="matrix-column">
           <div class="matrix-heading"><span class="matrix-explainer">${explicacion}</span></div>
+          <div class="matrix-meta"><span>${estado.n} × ${estado.n}</span><span>Desliza para explorar la matriz</span></div>
           ${html_matriz_cuerpo}
         </div>
       </div>
 
       <div class="algo-nav">
-        <button class="btn btn-ghost" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Atrás</button>
-        <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === 3 ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>
+        ${renderizar_navegacion_algoritmo()}
       </div>
     </div>
   </section>`;
@@ -996,7 +1099,7 @@ document.addEventListener("click", (evento) => {
     const action = t.dataset.action;
 
     if (["zoom-in", "zoom-out", "fit-network"].includes(action)) {
-        ajustar_vista_grafo(action);
+        ajustar_vista_grafo(action, t);
     } else if (action === "set-mode") {
         estado.modo = t.dataset.value;
         document.querySelectorAll('[data-action="set-mode"]').forEach((boton) => {
@@ -1027,10 +1130,12 @@ document.addEventListener("click", (evento) => {
             j = parseInt(t.dataset.j, 10);
         estado.matriz[i][j] = 0;
         estado.matriz[j][i] = 0;
-        renderizar();
+        estado.nodo_seleccionado_arista = null;
+        actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
     } else if (action === "clear-edges") {
         estado.matriz = crear_matriz_vacia(estado.n);
-        renderizar();
+        estado.nodo_seleccionado_arista = null;
+        actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
     } else if (action === "confirm-manual") {
         ejecutar_algoritmo();
         estado.paso_algoritmo = 0;
@@ -1039,12 +1144,12 @@ document.addEventListener("click", (evento) => {
     } else if (action === "algo-prev") {
         if (estado.paso_algoritmo > 0) {
             estado.paso_algoritmo--;
-            renderizar();
+            actualizar_pantalla_algoritmo();
         }
     } else if (action === "algo-next") {
         if (estado.paso_algoritmo < 3) {
             estado.paso_algoritmo++;
-            renderizar();
+            actualizar_pantalla_algoritmo();
         } else {
             estado.pantalla = "result";
             renderizar();
@@ -1059,7 +1164,16 @@ document.addEventListener("click", (evento) => {
     }
 });
 
-function seleccionar_nodo_red(indice) {
+function obtener_instancia_grafo_manual() {
+    const lienzo = document.querySelector(".graph-column .network-canvas");
+    return lienzo
+        ? instancias_grafos[Number(lienzo.dataset.networkIndex)]
+        : null;
+}
+
+function seleccionar_nodo_red(indice, instancia) {
+    if (!instancia) return;
+
     if (estado.nodo_seleccionado_arista === null) {
         estado.nodo_seleccionado_arista = indice;
     } else if (estado.nodo_seleccionado_arista === indice) {
@@ -1070,7 +1184,7 @@ function seleccionar_nodo_red(indice) {
         estado.matriz[indice][origen] = estado.matriz[origen][indice];
         estado.nodo_seleccionado_arista = null;
     }
-    renderizar();
+    actualizar_interfaz_construccion(instancia);
 }
 
 document.addEventListener("input", (evento) => {

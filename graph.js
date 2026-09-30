@@ -127,8 +127,8 @@
     function generar_matriz_aleatoria(cantidad) {
         const matriz = crear_matriz_vacia(cantidad);
         const tamano_grupo_principal = Math.min(
-            Math.max(2, cantidad - 2),
-            Math.max(2, Math.round(cantidad * (0.6 + Math.random() * 0.16))),
+            Math.max(3, cantidad - 2),
+            Math.max(3, Math.round(cantidad * (0.6 + Math.random() * 0.16))),
         );
         const probabilidad_conexion_adicional = 0.06 + Math.random() * 0.08;
         const tamanos_grupos = [tamano_grupo_principal];
@@ -136,17 +136,18 @@
 
         while (personas_restantes > 0) {
             if (personas_restantes <= 5) {
-                if (personas_restantes === 1) {
-                    tamanos_grupos[tamanos_grupos.length - 1]++;
+                if (personas_restantes < 3) {
+                    tamanos_grupos[tamanos_grupos.length - 1] +=
+                        personas_restantes;
                 } else {
                     tamanos_grupos.push(personas_restantes);
                 }
                 break;
             }
 
-            const tamano_maximo = Math.min(5, personas_restantes - 2);
+            const tamano_maximo = Math.min(5, personas_restantes - 3);
             const tamano_grupo =
-                2 + Math.floor(Math.random() * (tamano_maximo - 1));
+                3 + Math.floor(Math.random() * (tamano_maximo - 2));
             tamanos_grupos.push(tamano_grupo);
             personas_restantes -= tamano_grupo;
         }
@@ -171,12 +172,11 @@
             );
             inicio_grupo += tamano_grupo;
 
-            for (let indice = 1; indice < grupo.length; indice++) {
-                const persona = grupo[indice];
-                const persona_conocida =
-                    grupo[Math.floor(Math.random() * indice)];
-                matriz[persona][persona_conocida] = 1;
-                matriz[persona_conocida][persona] = 1;
+            for (let indice = 0; indice < grupo.length; indice++) {
+                const origen = grupo[indice];
+                const destino =
+                    grupo[(indice + 1) % grupo.length];
+                matriz[origen][destino] = 1;
             }
 
             for (let fila = 0; fila < grupo.length; fila++) {
@@ -188,22 +188,21 @@
                     if (Math.random() >= probabilidad_conexion_adicional) {
                         continue;
                     }
-                    matriz[grupo[fila]][grupo[columna]] = 1;
-                    matriz[grupo[columna]][grupo[fila]] = 1;
+                    const invertir_direccion = Math.random() < 0.5;
+                    const origen = invertir_direccion
+                        ? grupo[columna]
+                        : grupo[fila];
+                    const destino = invertir_direccion
+                        ? grupo[fila]
+                        : grupo[columna];
+                    if (!matriz[destino][origen]) {
+                        matriz[origen][destino] = 1;
+                    }
                 }
             }
         });
 
         return matriz;
-    }
-
-    function contar_unos(fila) {
-        return fila.reduce((total, valor) => total + valor, 0);
-    }
-
-    function indice_primer_uno(fila) {
-        const indice = fila.indexOf(1);
-        return indice === -1 ? Infinity : indice;
     }
 
     function agregar_diagonal(matriz) {
@@ -231,22 +230,6 @@
         return matriz_caminos;
     }
 
-    function calcular_orden(matriz_caminos) {
-        return Array.from(
-            { length: matriz_caminos.length },
-            (_, indice) => indice,
-        ).sort((indice_a, indice_b) => {
-            const cantidad_a = contar_unos(matriz_caminos[indice_a]);
-            const cantidad_b = contar_unos(matriz_caminos[indice_b]);
-            if (cantidad_a !== cantidad_b) return cantidad_b - cantidad_a;
-
-            return (
-                indice_primer_uno(matriz_caminos[indice_a]) -
-                indice_primer_uno(matriz_caminos[indice_b])
-            );
-        });
-    }
-
     function reordenar_matriz(matriz, orden) {
         return orden.map((indice_fila) =>
             orden.map((indice_columna) => matriz[indice_fila][indice_columna]),
@@ -257,17 +240,28 @@
         return orden.map((indice) => [...matriz[indice]]);
     }
 
-    function detectar_componentes(matriz_reordenada, orden) {
+    function detectar_componentes_fuertemente_conexas(matriz_caminos) {
+        const sin_agrupar = new Set(
+            Array.from({ length: matriz_caminos.length }, (_, indice) => indice),
+        );
         const componentes = [];
-        let inicio = 0;
 
-        while (inicio < orden.length) {
-            const tamano = contar_unos(matriz_reordenada[inicio]);
-            componentes.push(orden.slice(inicio, inicio + tamano));
-            inicio += tamano;
+        while (sin_agrupar.size > 0) {
+            const origen = sin_agrupar.values().next().value;
+            const componente = [...sin_agrupar].filter(
+                (destino) =>
+                    matriz_caminos[origen][destino] &&
+                    matriz_caminos[destino][origen],
+            );
+            componente.forEach((indice) => sin_agrupar.delete(indice));
+            componentes.push(componente);
         }
 
-        return componentes;
+        return componentes.sort(
+            (componente_a, componente_b) =>
+                componente_b.length - componente_a.length ||
+                componente_a[0] - componente_b[0],
+        );
     }
 
     function calcular_datos_algoritmo(matriz) {
@@ -275,7 +269,10 @@
         const matriz_caminos = calcular_clausura_transitiva(
             matriz_entrada_caminos,
         );
-        const orden = calcular_orden(matriz_caminos);
+        const componentes = detectar_componentes_fuertemente_conexas(
+            matriz_caminos,
+        );
+        const orden = componentes.flat();
         const filas_ordenadas = reordenar_solo_filas(matriz_caminos, orden);
         const matriz_reordenada = reordenar_matriz(matriz_caminos, orden);
 
@@ -285,7 +282,7 @@
             orden,
             filas_ordenadas,
             matriz_reordenada,
-            componentes: detectar_componentes(matriz_reordenada, orden),
+            componentes,
         };
     }
 

@@ -44,7 +44,7 @@ function crear_estado_inicial() {
         nombres: [],
         matriz: [],
         nodo_seleccionado_arista: null,
-        paso_algoritmo: 0,
+        paso_algoritmo: -1,
         matriz_entrada_caminos: null,
         matriz_caminos: null,
         filas_ordenadas: null,
@@ -104,19 +104,21 @@ function crear_elementos_grafo(opciones) {
     }));
     const aristas = [];
     for (let fila = 0; fila < cantidad; fila++) {
-        for (let columna = fila + 1; columna < cantidad; columna++) {
-            if (opciones.matriz[fila][columna]) {
-                aristas.push({
-                    data: {
-                        id: `${fila}-${columna}`,
-                        source: String(fila),
-                        target: String(columna),
-                        color:
-                            opciones.mapa_colores?.[fila] ??
-                            color_arista_neutra,
-                    },
-                });
+        for (let columna = 0; columna < cantidad; columna++) {
+            if (fila === columna || !opciones.matriz[fila][columna]) {
+                continue;
             }
+
+            aristas.push({
+                data: {
+                    id: `${fila}-${columna}`,
+                    source: String(fila),
+                    target: String(columna),
+                    color:
+                        opciones.mapa_colores?.[fila] ??
+                        color_arista_neutra,
+                },
+            });
         }
     }
     return [...nodos, ...aristas];
@@ -235,6 +237,9 @@ function posicionar_grafos() {
                     style: {
                         width: cantidad > 50 ? 1 : 1.5,
                         "line-color": "data(color)",
+                        "target-arrow-color": "data(color)",
+                        "target-arrow-shape": "triangle",
+                        "arrow-scale": 0.8,
                         opacity: 0.5,
                         "curve-style": "bezier",
                         "overlay-opacity": 0,
@@ -515,10 +520,11 @@ function renderizar_pantalla_construccion() {
 function obtener_conexiones_manuales() {
     const conexiones = [];
     for (let fila = 0; fila < estado.n; fila++) {
-        for (let columna = fila + 1; columna < estado.n; columna++) {
+        for (let columna = 0; columna < estado.n; columna++) {
+            if (fila === columna) continue;
             if (estado.matriz[fila][columna]) {
                 conexiones.push(
-                    `<span class="edge-chip">${estado.nombres[fila]} ↔ ${estado.nombres[columna]} <button data-action="remove-edge" data-i="${fila}" data-j="${columna}" aria-label="Quitar conexión">×</button></span>`,
+                    `<span class="edge-chip">${estado.nombres[fila]} → ${estado.nombres[columna]} <button data-action="remove-edge" data-i="${fila}" data-j="${columna}" aria-label="Quitar conexión de ${estado.nombres[fila]} hacia ${estado.nombres[columna]}">×</button></span>`,
                 );
             }
         }
@@ -570,7 +576,8 @@ function actualizar_interfaz_construccion(instancia) {
     );
     const aristas_deseadas = new Set();
     for (let fila = 0; fila < estado.n; fila++) {
-        for (let columna = fila + 1; columna < estado.n; columna++) {
+        for (let columna = 0; columna < estado.n; columna++) {
+            if (fila === columna) continue;
             if (!estado.matriz[fila][columna]) continue;
 
             const id = `${fila}-${columna}`;
@@ -610,6 +617,7 @@ function renderizar_puntos_pasos() {
 }
 
 function obtener_contenido_paso_algoritmo() {
+    const paso_actual = Math.max(estado.paso_algoritmo, 0);
     const etiquetas_originales = Array.from(
         { length: estado.n },
         (_, indice) => String(indice + 1),
@@ -624,7 +632,7 @@ function obtener_contenido_paso_algoritmo() {
     let explicacion;
     let mapa_colores = null;
 
-    switch (estado.paso_algoritmo) {
+    switch (paso_actual) {
         case 0:
             matriz = estado.matriz_entrada_caminos;
             etiquetas_filas = etiquetas_originales;
@@ -686,9 +694,13 @@ function obtener_contenido_paso_algoritmo() {
 }
 
 function renderizar_navegacion_algoritmo() {
+    const es_presentacion_grafo = estado.paso_algoritmo === -1;
+    const texto_anterior =
+        estado.paso_algoritmo === 0 ? "← Ver grafo" : "← Atrás";
+
     return `
-        <button class="btn btn-ghost" data-action="algo-prev" ${estado.paso_algoritmo === 0 ? "disabled" : ""}>← Atrás</button>
-        <button class="btn btn-primary" data-action="algo-next">${estado.paso_algoritmo === ULTIMO_PASO_ALGORITMO ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>`;
+        <button class="btn btn-ghost" data-action="algo-prev" ${es_presentacion_grafo ? "hidden" : ""}>${texto_anterior}</button>
+        <button class="btn btn-primary" data-action="algo-next">${es_presentacion_grafo ? "Continuar a la matriz" : estado.paso_algoritmo === ULTIMO_PASO_ALGORITMO ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>`;
 }
 
 function actualizar_colores_grafo_algoritmo(mapa_colores) {
@@ -708,8 +720,15 @@ function actualizar_colores_grafo_algoritmo(mapa_colores) {
     });
 }
 
-function actualizar_pantalla_algoritmo() {
+function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     const contenido = obtener_contenido_paso_algoritmo();
+    const panel = document.querySelector(".algorithm-panel");
+    const es_presentacion_grafo = estado.paso_algoritmo === -1;
+    panel.classList.toggle("algorithm-intro", es_presentacion_grafo);
+    document.querySelector(".algorithm-eyebrow-label").textContent =
+        es_presentacion_grafo ? "TU RED" : "ASÍ FUNCIONA";
+    document.querySelector(".algorithm-page-title").textContent =
+        es_presentacion_grafo ? "Así quedó tu red" : "Sigamos las conexiones";
     document.querySelector(".steps-nav").innerHTML = renderizar_puntos_pasos();
     document.querySelector(".matrix-heading .matrix-explainer").innerHTML =
         contenido.explicacion;
@@ -718,25 +737,45 @@ function actualizar_pantalla_algoritmo() {
     document.querySelector(".algo-nav").innerHTML =
         renderizar_navegacion_algoritmo();
     actualizar_colores_grafo_algoritmo(contenido.mapa_colores);
+
+    if (ajustar_grafo) {
+        window.requestAnimationFrame(() => {
+            const lienzo = document.querySelector(
+                ".algorithm-graph .network-canvas",
+            );
+            if (!lienzo) return;
+
+            const instancia =
+                instancias_grafos[Number(lienzo.dataset.networkIndex)];
+            if (!instancia) return;
+
+            instancia.resize();
+            instancia.fit(
+                instancia.elements(),
+                estado.n > 12 ? 32 : 42,
+            );
+        });
+    }
 }
 
 function renderizar_pantalla_algoritmo() {
     const n = estado.n;
+    const es_presentacion_grafo = estado.paso_algoritmo === -1;
     const { explicacion, html_matriz_cuerpo, mapa_colores } =
         obtener_contenido_paso_algoritmo();
 
     return `
   <section class="screen">
     <div class="screen-heading">
-      <div><span class="eyebrow"><span class="eyebrow-line"></span> ASÍ FUNCIONA</span><h1 class="page-title">Sigamos las conexiones</h1></div>
+      <div><span class="eyebrow"><span class="eyebrow-line"></span> <span class="algorithm-eyebrow-label">${es_presentacion_grafo ? "TU RED" : "ASÍ FUNCIONA"}</span></span><h1 class="page-title algorithm-page-title">${es_presentacion_grafo ? "Así quedó tu red" : "Sigamos las conexiones"}</h1></div>
       <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
     </div>
-    <div class="panel workspace-panel algorithm-panel">
+    <div class="panel workspace-panel algorithm-panel ${es_presentacion_grafo ? "algorithm-intro" : ""}">
       <div class="steps-nav">${renderizar_puntos_pasos()}</div>
 
       <div class="algo-grid">
         <div class="algorithm-graph">
-          <div class="section-kicker">TU RED</div>
+          <div class="section-kicker">VISTA DEL GRAFO</div>
           <div class="graph-wrap">
           ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores })}
           </div>
@@ -786,7 +825,7 @@ function renderizar_pantalla_resultado() {
     <div class="panel workspace-panel">
       <div class="result-summary">
         <span class="big-n">${estado.componentes.length}</span>
-        <span class="big-label">comunidades<br /><b>${n} personas · ${estado.matriz.flat().reduce((total, valor) => total + valor, 0) / 2} conexiones</b></span>
+        <span class="big-label">comunidades<br /><b>${n} personas · ${estado.matriz.flat().reduce((total, valor) => total + valor, 0)} conexiones dirigidas</b></span>
       </div>
 
       <div class="result-grid">
@@ -840,7 +879,7 @@ function iniciar_exploracion() {
         estado.pantalla = "algorithm";
     }
 
-    estado.paso_algoritmo = 0;
+    estado.paso_algoritmo = -1;
     renderizar();
 }
 
@@ -874,19 +913,24 @@ function quitar_conexion(boton) {
     }
 
     estado.matriz[origen][destino] = 0;
-    estado.matriz[destino][origen] = 0;
     estado.nodo_seleccionado_arista = null;
     actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
 }
 
 function confirmar_red_manual() {
     ejecutar_algoritmo();
-    estado.paso_algoritmo = 0;
+    estado.paso_algoritmo = -1;
     estado.pantalla = "algorithm";
     renderizar();
 }
 
 function avanzar_paso_algoritmo() {
+    if (estado.paso_algoritmo === -1) {
+        estado.paso_algoritmo = 0;
+        actualizar_pantalla_algoritmo(true);
+        return;
+    }
+
     if (estado.paso_algoritmo < ULTIMO_PASO_ALGORITMO) {
         estado.paso_algoritmo++;
         actualizar_pantalla_algoritmo();
@@ -911,9 +955,10 @@ const acciones_interfaz = {
     },
     "confirm-manual": confirmar_red_manual,
     "algo-prev": () => {
-        if (estado.paso_algoritmo === 0) return;
-        estado.paso_algoritmo--;
-        actualizar_pantalla_algoritmo();
+        if (estado.paso_algoritmo < 0) return;
+        estado.paso_algoritmo =
+            estado.paso_algoritmo === 0 ? -1 : estado.paso_algoritmo - 1;
+        actualizar_pantalla_algoritmo(estado.paso_algoritmo === -1);
     },
     "algo-next": avanzar_paso_algoritmo,
     restart: reiniciar_exploracion,
@@ -954,7 +999,6 @@ function seleccionar_nodo_red(indice, instancia) {
     } else {
         const origen = estado.nodo_seleccionado_arista;
         estado.matriz[origen][indice] = estado.matriz[origen][indice] ? 0 : 1;
-        estado.matriz[indice][origen] = estado.matriz[origen][indice];
         estado.nodo_seleccionado_arista = null;
     }
     actualizar_interfaz_construccion(instancia);

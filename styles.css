@@ -1831,6 +1831,33 @@ table.matrix-large td {
     min-height: 42px;
 }
 
+.algorithm-intro .steps-nav,
+.algorithm-intro .matrix-column {
+    display: none;
+}
+
+.algorithm-intro .algo-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.algorithm-intro .algorithm-graph {
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.algorithm-intro .network-frame {
+    height: clamp(320px, 58vh, 560px);
+}
+
+.algorithm-intro .algo-nav {
+    justify-content: center;
+}
+
+.algo-nav [hidden] {
+    display: none;
+}
+
 .result-heading {
     margin-bottom: 23px;
 }
@@ -2079,6 +2106,15 @@ table.matrix-large td {
 
     .workspace-panel {
         padding: 14px;
+    }
+
+    .algorithm-intro .network-frame {
+        height: min(54vh, 440px);
+        min-height: 300px;
+    }
+
+    .algorithm-intro .algo-nav .btn-primary {
+        min-width: min(100%, 240px);
     }
 
     .steps-nav {

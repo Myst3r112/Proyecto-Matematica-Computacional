@@ -75,25 +75,7 @@ function renderizar_grafo(opciones) {
 
 function crear_elementos_grafo(opciones) {
     const cantidad = opciones.n;
-    const orden_colores = new Map();
-    const orden_nodos = Array.from(
-        { length: cantidad },
-        (_, indice) => indice,
-    );
-    if (opciones.mapa_colores) {
-        opciones.mapa_colores.forEach((color) => {
-            if (!orden_colores.has(color)) {
-                orden_colores.set(color, orden_colores.size);
-            }
-        });
-        orden_nodos.sort((a, b) => {
-            const color_a = opciones.mapa_colores[a];
-            const color_b = opciones.mapa_colores[b];
-            return orden_colores.get(color_a) - orden_colores.get(color_b);
-        });
-    }
-
-    const nodos = orden_nodos.map((indice) => ({
+    const nodos = Array.from({ length: cantidad }, (_, indice) => ({
         data: {
             id: String(indice),
             nombre: opciones.nombres[indice],
@@ -124,17 +106,58 @@ function crear_elementos_grafo(opciones) {
     return [...nodos, ...aristas];
 }
 
-function crear_opciones_distribucion(cantidad) {
+function crear_posiciones_componentes(instancia, componentes) {
+    const ancho = instancia.width();
+    const alto = instancia.height();
+    const proporcion = ancho / Math.max(alto, 1);
+    const columnas = Math.ceil(
+        Math.sqrt(componentes.length * proporcion),
+    );
+    const filas = Math.ceil(componentes.length / columnas);
+    const ancho_celda = ancho / columnas;
+    const alto_celda = alto / filas;
+    const posiciones = new Map();
+
+    componentes.forEach((componente, indice_componente) => {
+        const columna_componente = indice_componente % columnas;
+        const fila_componente = Math.floor(indice_componente / columnas);
+        const centro_x = (columna_componente + 0.5) * ancho_celda;
+        const centro_y = (fila_componente + 0.5) * alto_celda;
+        const columnas_internas = Math.ceil(
+            Math.sqrt(componente.length * ancho_celda / alto_celda),
+        );
+        const filas_internas = Math.ceil(
+            componente.length / columnas_internas,
+        );
+        const separacion_x = ancho_celda / (columnas_internas + 1);
+        const separacion_y = alto_celda / (filas_internas + 1);
+        const inicio_x =
+            centro_x - ((columnas_internas - 1) * separacion_x) / 2;
+        const inicio_y =
+            centro_y - ((filas_internas - 1) * separacion_y) / 2;
+
+        componente.forEach((indice_nodo, posicion) => {
+            const columna = posicion % columnas_internas;
+            const fila = Math.floor(posicion / columnas_internas);
+            posiciones.set(String(indice_nodo), {
+                x: inicio_x + columna * separacion_x,
+                y: inicio_y + fila * separacion_y,
+            });
+        });
+    });
+
+    return posiciones;
+}
+
+function crear_opciones_distribucion(cantidad, posiciones) {
     return {
-        name: "cose",
+        name: posiciones ? "preset" : "random",
         animate: false,
         fit: false,
         padding: cantidad > 12 ? 32 : 42,
-        nodeRepulsion: cantidad > 50 ? 3500 : 8000,
-        idealEdgeLength: cantidad > 50 ? 38 : 52,
-        gravity: cantidad > 50 ? 0.22 : 0.35,
-        numIter: cantidad > 50 ? 180 : 250,
-        randomize: true,
+        positions: posiciones
+            ? (nodo) => posiciones.get(nodo.id())
+            : undefined,
     };
 }
 
@@ -144,8 +167,12 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
         distribucion_previsualizacion?.stop();
     }
 
+    const posiciones = opciones.organizar_componentes
+        ? crear_posiciones_componentes(instancia, opciones.componentes)
+        : null;
+
     const distribucion = instancia.layout(
-        crear_opciones_distribucion(opciones.n),
+        crear_opciones_distribucion(opciones.n, posiciones),
     );
     if (es_previsualizacion) {
         distribucion_previsualizacion = distribucion;
@@ -830,7 +857,7 @@ function renderizar_pantalla_resultado() {
 
       <div class="result-grid">
         <div class="graph-wrap">
-          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores })}
+          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores, componentes: estado.componentes, organizar_componentes: true })}
         </div>
         <div>${cards}</div>
       </div>

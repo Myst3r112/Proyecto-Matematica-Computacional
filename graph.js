@@ -124,34 +124,39 @@
         );
     }
 
-    function generar_matriz_aleatoria(cantidad) {
-        const matriz = crear_matriz_vacia(cantidad);
-        const tamano_grupo_principal = Math.min(
-            Math.max(3, cantidad - 2),
-            Math.max(3, Math.round(cantidad * (0.6 + Math.random() * 0.16))),
-        );
-        const probabilidad_conexion_adicional = 0.06 + Math.random() * 0.08;
-        const tamanos_grupos = [tamano_grupo_principal];
-        let personas_restantes = cantidad - tamano_grupo_principal;
+    function crear_tamanos_grupos(cantidad) {
+        const tamano_maximo = Math.min(30, cantidad);
+        const cantidad_minima_grupos = Math.ceil(cantidad / tamano_maximo);
+        const cantidad_maxima_grupos = Math.floor(cantidad / 2);
+        const cantidad_grupos =
+            cantidad_minima_grupos +
+            Math.floor(
+                Math.random() *
+                    (cantidad_maxima_grupos - cantidad_minima_grupos + 1),
+            );
+        const tamanos = Array(cantidad_grupos).fill(2);
+        let personas_restantes = cantidad - cantidad_grupos * 2;
 
         while (personas_restantes > 0) {
-            if (personas_restantes <= 5) {
-                if (personas_restantes < 3) {
-                    tamanos_grupos[tamanos_grupos.length - 1] +=
-                        personas_restantes;
-                } else {
-                    tamanos_grupos.push(personas_restantes);
-                }
-                break;
-            }
-
-            const tamano_maximo = Math.min(5, personas_restantes - 3);
-            const tamano_grupo =
-                3 + Math.floor(Math.random() * (tamano_maximo - 2));
-            tamanos_grupos.push(tamano_grupo);
-            personas_restantes -= tamano_grupo;
+            const grupos_disponibles = tamanos
+                .map((tamano, indice) =>
+                    tamano < tamano_maximo ? indice : -1,
+                )
+                .filter((indice) => indice >= 0);
+            const indice_grupo =
+                grupos_disponibles[
+                    Math.floor(Math.random() * grupos_disponibles.length)
+                ];
+            tamanos[indice_grupo]++;
+            personas_restantes--;
         }
 
+        return tamanos;
+    }
+
+    function generar_matriz_aleatoria(cantidad) {
+        const matriz = crear_matriz_vacia(cantidad);
+        const tamanos_grupos = crear_tamanos_grupos(cantidad);
         const personas = Array.from(
             { length: cantidad },
             (_, indice) => indice,
@@ -172,32 +177,40 @@
             );
             inicio_grupo += tamano_grupo;
 
+            const probabilidad_conexion_adicional =
+                0.02 + Math.random() * 0.14;
+            const orden_grupo = [...grupo];
+            for (
+                let indice = orden_grupo.length - 1;
+                indice > 0;
+                indice--
+            ) {
+                const otro_indice = Math.floor(
+                    Math.random() * (indice + 1),
+                );
+                [orden_grupo[indice], orden_grupo[otro_indice]] = [
+                    orden_grupo[otro_indice],
+                    orden_grupo[indice],
+                ];
+            }
+
             for (let indice = 0; indice < grupo.length; indice++) {
-                const origen = grupo[indice];
+                const origen = orden_grupo[indice];
                 const destino =
-                    grupo[(indice + 1) % grupo.length];
+                    orden_grupo[(indice + 1) % grupo.length];
                 matriz[origen][destino] = 1;
             }
 
-            for (let fila = 0; fila < grupo.length; fila++) {
-                for (
-                    let columna = fila + 1;
-                    columna < grupo.length;
-                    columna++
-                ) {
-                    if (Math.random() >= probabilidad_conexion_adicional) {
+            for (const origen of grupo) {
+                for (const destino of grupo) {
+                    if (
+                        origen === destino ||
+                        matriz[origen][destino] ||
+                        Math.random() >= probabilidad_conexion_adicional
+                    ) {
                         continue;
                     }
-                    const invertir_direccion = Math.random() < 0.5;
-                    const origen = invertir_direccion
-                        ? grupo[columna]
-                        : grupo[fila];
-                    const destino = invertir_direccion
-                        ? grupo[fila]
-                        : grupo[columna];
-                    if (!matriz[destino][origen]) {
-                        matriz[origen][destino] = 1;
-                    }
+                    matriz[origen][destino] = 1;
                 }
             }
         });

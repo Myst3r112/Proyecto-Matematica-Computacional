@@ -1681,8 +1681,22 @@ svg.graph g[data-action="pick-node"] circle {
 }
 
 .algo-grid {
-    grid-template-columns: minmax(230px, 0.85fr) minmax(0, 1.15fr);
+    align-items: center;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
     gap: clamp(15px, 3vw, 28px);
+    transition:
+        grid-template-columns 0.42s cubic-bezier(0.2, 0.7, 0.2, 1),
+        gap 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.algorithm-graph,
+.matrix-column {
+    width: 100%;
+    justify-self: center;
+}
+
+.algorithm-graph .network-frame {
+    transition: height 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .algorithm-graph .section-kicker {
@@ -1695,6 +1709,11 @@ svg.graph g[data-action="pick-node"] circle {
     border: 1px solid #eeebe4;
     border-radius: 17px;
     background: #fbfaf7;
+    transition:
+        opacity 0.35s ease,
+        transform 0.35s ease,
+        padding 0.42s ease,
+        border-width 0.42s ease;
 }
 
 .matrix-heading {
@@ -1831,13 +1850,34 @@ table.matrix-large td {
     min-height: 42px;
 }
 
-.algorithm-intro .steps-nav,
-.algorithm-intro .matrix-column {
+.algorithm-intro .steps-nav {
     display: none;
 }
 
+.algorithm-intro .matrix-column {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(14px);
+    overflow: hidden;
+    padding: 0;
+    border-width: 0;
+}
+
+.algorithm-panel.revealing-matrix .matrix-column {
+    visibility: visible;
+    opacity: 0;
+    transform: translateY(14px);
+}
+
+.algorithm-panel.hiding-matrix .matrix-column {
+    visibility: visible;
+    opacity: 0;
+    transform: translateY(14px);
+}
+
 .algorithm-intro .algo-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+    gap: 0;
 }
 
 .algorithm-intro .algorithm-graph {
@@ -1989,6 +2029,25 @@ table.matrix-large td {
     .algo-grid,
     .result-grid {
         grid-template-columns: 1fr;
+    }
+
+    .algorithm-intro .algo-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 15px;
+    }
+
+    .algorithm-intro .matrix-column {
+        max-height: 0;
+    }
+
+    .matrix-column {
+        max-height: 1000px;
+        transition:
+            opacity 0.35s ease,
+            transform 0.35s ease,
+            max-height 0.42s ease,
+            padding 0.42s ease,
+            border-width 0.42s ease;
     }
 
     .connections-panel {

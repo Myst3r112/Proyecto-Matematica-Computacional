@@ -363,45 +363,81 @@ window.addEventListener("resize", () => {
 
 /* Construye una tabla para la matriz */
 function renderizar_tabla_matriz(
-    matrix,
+    matriz,
     etiquetas_filas,
     etiquetas_columnas,
-    opciones,
+    opciones = {},
 ) {
-    opciones = opciones || {};
-    const n = matrix.length;
-    const tamano = n > 50 ? "large" : n > 24 ? "medium" : "small";
-    let encabezado_tabla = `<thead><tr><th></th>${    etiquetas_columnas
+    const cantidad = matriz.length;
+    const tamano =
+        cantidad > 50 ? "large" : cantidad > 24 ? "medium" : "small";
+    const encabezado_tabla = `<thead><tr><th></th>${etiquetas_columnas
         .map((etiqueta) => `<th scope="col">${etiqueta}</th>`)
         .join("")}</tr></thead>`;
-    let rows = "";
-    for (let i = 0; i < n; i++) {
-        let cells = "";
-        for (let j = 0; j < n; j++) {
-            const val = matrix[i][j];
-            let cls = val ? "one" : "";
-            if (opciones.fondo_diagonal && i === j) cls += " diag";
-            let style = "";
+    let filas_html = "";
+
+    for (let indice_fila = 0; indice_fila < cantidad; indice_fila++) {
+        let celdas_html = "";
+
+        for (
+            let indice_columna = 0;
+            indice_columna < cantidad;
+            indice_columna++
+        ) {
+            const valor = matriz[indice_fila][indice_columna];
+            let clases = valor ? "one" : "";
+            if (
+                opciones.fondo_diagonal &&
+                indice_fila === indice_columna
+            ) {
+                clases += " diag";
+            }
+
+            let estilo_celda = "";
             if (opciones.bloque_de) {
-                const bi = opciones.bloque_de[i],
-                    bj = opciones.bloque_de[j];
-                if (bi !== undefined && bi === bj && bi !== null) {
-                    const color = obtener_color_componente(bi);
-                    style = `style="background:${hexadecimal_a_rgba(color, 0.16)}; color:${val ? color : "var(--text-muted)"};"`;
+                const componente_fila = opciones.bloque_de[indice_fila];
+                const componente_columna =
+                    opciones.bloque_de[indice_columna];
+
+                if (
+                    componente_fila !== undefined &&
+                    componente_fila === componente_columna &&
+                    componente_fila !== null
+                ) {
+                    const color = obtener_color_componente(componente_fila);
+                    const color_texto = valor
+                        ? color
+                        : "var(--text-muted)";
+                    estilo_celda = `style="background:${hexadecimal_a_rgba(color, 0.16)}; color:${color_texto};"`;
                 }
             }
-            cells += `<td class="${cls}" ${style}>${val}</td>`;
+
+            celdas_html += `<td class="${clases}" ${estilo_celda}>${valor}</td>`;
         }
-        rows += `<tr><th scope="row">${etiquetas_filas[i]}</th>${cells}</tr>`;
+
+        filas_html += `<tr><th scope="row">${etiquetas_filas[indice_fila]}</th>${celdas_html}</tr>`;
     }
-    return `<div class="matrix-scroll matrix-scroll-${tamano}" tabindex="0" role="region" aria-label="Matriz de ${n} por ${n}; desplázate para recorrer sus datos"><table class="matrix matrix-${tamano}">${encabezado_tabla}<tbody>${rows}</tbody></table></div>`;
+
+    return `
+        <div
+            class="matrix-scroll matrix-scroll-${tamano}"
+            tabindex="0"
+            role="region"
+            aria-label="Matriz de ${cantidad} por ${cantidad}; desplázate para recorrer sus datos"
+        >
+            <table class="matrix matrix-${tamano}">
+                ${encabezado_tabla}
+                <tbody>${filas_html}</tbody>
+            </table>
+        </div>`;
 }
 
-function hexadecimal_a_rgba(hex, a) {
-    const r = parseInt(hex.slice(1, 3), 16),
-        g = parseInt(hex.slice(3, 5), 16),
-        b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${a})`;
+function hexadecimal_a_rgba(hexadecimal, opacidad) {
+    const rojo = parseInt(hexadecimal.slice(1, 3), 16);
+    const verde = parseInt(hexadecimal.slice(3, 5), 16);
+    const azul = parseInt(hexadecimal.slice(5, 7), 16);
+
+    return `rgba(${rojo},${verde},${azul},${opacidad})`;
 }
 
 /* Pantalla de configuración */
@@ -502,7 +538,7 @@ function crear_opciones_previsualizacion(cantidad) {
 function renderizar_pantalla_construccion() {
     const n = estado.n;
     const conexiones = obtener_conexiones_manuales();
-    const count = conexiones.cantidad;
+    const cantidad_conexiones = conexiones.cantidad;
 
     return `
         <section class="screen">
@@ -529,7 +565,7 @@ function renderizar_pantalla_construccion() {
                                         })}
                         </div>
                         <div class="stat-line">
-                            <span><b>${n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${count}</b> CONEXIONES</span>
+                            <span><b>${n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${cantidad_conexiones}</b> CONEXIONES</span>
                         </div>
                     </div>
                     <aside class="connections-panel">
@@ -751,6 +787,17 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     const contenido = obtener_contenido_paso_algoritmo();
     const panel = document.querySelector(".algorithm-panel");
     const es_presentacion_grafo = estado.paso_algoritmo === -1;
+    const transicionar_a_matriz =
+        panel.classList.contains("algorithm-intro") && !es_presentacion_grafo;
+    const transicionar_al_grafo =
+        !panel.classList.contains("algorithm-intro") && es_presentacion_grafo;
+
+    if (transicionar_a_matriz) {
+        panel.classList.add("revealing-matrix");
+    } else if (transicionar_al_grafo) {
+        panel.classList.add("hiding-matrix");
+    }
+
     panel.classList.toggle("algorithm-intro", es_presentacion_grafo);
     document.querySelector(".algorithm-eyebrow-label").textContent =
         es_presentacion_grafo ? "TU RED" : "ASÍ FUNCIONA";
@@ -765,23 +812,58 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
         renderizar_navegacion_algoritmo();
     actualizar_colores_grafo_algoritmo(contenido.mapa_colores);
 
-    if (ajustar_grafo) {
+    const movimiento_reducido = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (transicionar_a_matriz) {
         window.requestAnimationFrame(() => {
-            const lienzo = document.querySelector(
-                ".algorithm-graph .network-canvas",
-            );
-            if (!lienzo) return;
-
-            const instancia =
-                instancias_grafos[Number(lienzo.dataset.networkIndex)];
-            if (!instancia) return;
-
-            instancia.resize();
-            instancia.fit(
-                instancia.elements(),
-                estado.n > 12 ? 32 : 42,
-            );
+            window.requestAnimationFrame(() => {
+                panel.classList.remove("revealing-matrix");
+            });
         });
+    } else if (transicionar_al_grafo) {
+        window.setTimeout(
+            () => panel.classList.remove("hiding-matrix"),
+            movimiento_reducido ? 0 : 360,
+        );
+    }
+
+    if (ajustar_grafo) {
+        const ajustar_grafo = () =>
+            window.requestAnimationFrame(() => {
+                const lienzo = document.querySelector(
+                    ".algorithm-graph .network-canvas",
+                );
+                if (!lienzo) return;
+
+                const instancia =
+                    instancias_grafos[Number(lienzo.dataset.networkIndex)];
+                if (!instancia) return;
+
+                instancia.resize();
+                const opciones_ajuste = {
+                    eles: instancia.elements(),
+                    padding: estado.n > 12 ? 32 : 42,
+                };
+
+                if (
+                    !movimiento_reducido &&
+                    typeof instancia.animate === "function"
+                ) {
+                    instancia.animate(
+                        { fit: opciones_ajuste },
+                        { duration: 420, easing: "ease-in-out-cubic" },
+                    );
+                } else {
+                    instancia.fit(
+                        opciones_ajuste.eles,
+                        opciones_ajuste.padding,
+                    );
+                }
+            });
+
+        ajustar_grafo();
     }
 }
 

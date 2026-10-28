@@ -1,4 +1,4 @@
-/* Lógica pura para matrices, comunidades y colores de la red */
+/* Cálculo de componentes fuertemente conexas y colores de la red */
 (() => {
     const nombres_disponibles = [
         "Amir",
@@ -102,7 +102,8 @@
         "Carolina",
         "Diana",
     ];
-    const CANTIDAD_MAXIMA_USUARIOS = 100;
+    const CANTIDAD_MINIMA_USUARIOS = 4;
+    const CANTIDAD_MAXIMA_USUARIOS = 12;
     const colores_componentes = Array.from(
         { length: CANTIDAD_MAXIMA_USUARIOS },
         (_, indice) => generar_color_componente(indice),
@@ -110,13 +111,27 @@
     const color_nodo_neutro = "#D8F1FA";
     const color_arista_neutra = "#3A4A66";
 
+    function validar_cantidad(cantidad) {
+        if (
+            !Number.isInteger(cantidad) ||
+            cantidad < CANTIDAD_MINIMA_USUARIOS ||
+            cantidad > CANTIDAD_MAXIMA_USUARIOS
+        ) {
+            throw new RangeError(
+                `La cantidad de nodos debe estar entre ${CANTIDAD_MINIMA_USUARIOS} y ${CANTIDAD_MAXIMA_USUARIOS}.`,
+            );
+        }
+    }
+
     function crear_matriz_vacia(cantidad) {
+        validar_cantidad(cantidad);
         return Array.from({ length: cantidad }, () =>
             Array(cantidad).fill(0),
         );
     }
 
     function obtener_nombres_red(cantidad) {
+        validar_cantidad(cantidad);
         return Array.from({ length: cantidad }, (_, indice) =>
             indice < nombres_disponibles.length
                 ? nombres_disponibles[indice]
@@ -124,149 +139,94 @@
         );
     }
 
-    function crear_tamanos_grupos(cantidad) {
-        const tamano_maximo = Math.min(30, cantidad);
-        const cantidad_minima_grupos = Math.ceil(cantidad / tamano_maximo);
-        const cantidad_maxima_grupos = Math.floor(cantidad / 2);
-        const cantidad_grupos =
-            cantidad_minima_grupos +
-            Math.floor(
-                Math.random() *
-                    (cantidad_maxima_grupos - cantidad_minima_grupos + 1),
-            );
-        const tamanos = Array(cantidad_grupos).fill(2);
-        let personas_restantes = cantidad - cantidad_grupos * 2;
-
-        while (personas_restantes > 0) {
-            const grupos_disponibles = tamanos
-                .map((tamano, indice) =>
-                    tamano < tamano_maximo ? indice : -1,
-                )
-                .filter((indice) => indice >= 0);
-            const indice_grupo =
-                grupos_disponibles[
-                    Math.floor(Math.random() * grupos_disponibles.length)
-                ];
-            tamanos[indice_grupo]++;
-            personas_restantes--;
-        }
-
-        return tamanos;
-    }
-
     function generar_matriz_aleatoria(cantidad) {
+        validar_cantidad(cantidad);
         const matriz = crear_matriz_vacia(cantidad);
-        const tamanos_grupos = crear_tamanos_grupos(cantidad);
-        const personas = Array.from(
-            { length: cantidad },
-            (_, indice) => indice,
-        );
-        for (let indice = personas.length - 1; indice > 0; indice--) {
-            const otro_indice = Math.floor(Math.random() * (indice + 1));
-            [personas[indice], personas[otro_indice]] = [
-                personas[otro_indice],
-                personas[indice],
-            ];
-        }
+        const probabilidad_arista = 0.12 + Math.random() * 0.28;
 
-        let inicio_grupo = 0;
-        tamanos_grupos.forEach((tamano_grupo) => {
-            const grupo = personas.slice(
-                inicio_grupo,
-                inicio_grupo + tamano_grupo,
-            );
-            inicio_grupo += tamano_grupo;
-
-            const probabilidad_conexion_adicional =
-                0.02 + Math.random() * 0.14;
-            const orden_grupo = [...grupo];
-            for (
-                let indice = orden_grupo.length - 1;
-                indice > 0;
-                indice--
-            ) {
-                const otro_indice = Math.floor(
-                    Math.random() * (indice + 1),
-                );
-                [orden_grupo[indice], orden_grupo[otro_indice]] = [
-                    orden_grupo[otro_indice],
-                    orden_grupo[indice],
-                ];
-            }
-
-            for (let indice = 0; indice < grupo.length; indice++) {
-                const origen = orden_grupo[indice];
-                const destino =
-                    orden_grupo[(indice + 1) % grupo.length];
-                matriz[origen][destino] = 1;
-            }
-
-            for (const origen of grupo) {
-                for (const destino of grupo) {
-                    if (
-                        origen === destino ||
-                        matriz[origen][destino] ||
-                        Math.random() >= probabilidad_conexion_adicional
-                    ) {
-                        continue;
-                    }
+        for (let origen = 0; origen < cantidad; origen++) {
+            for (let destino = 0; destino < cantidad; destino++) {
+                if (
+                    origen !== destino &&
+                    Math.random() < probabilidad_arista
+                ) {
                     matriz[origen][destino] = 1;
                 }
             }
-        });
+        }
 
         return matriz;
     }
 
-    function agregar_diagonal(matriz) {
-        return matriz.map((fila, indice) =>
-            fila.map((valor, columna) => (indice === columna ? 1 : valor)),
+    function reordenar_matriz(matriz, orden_filas, orden_columnas) {
+        return orden_filas.map((indice_fila) =>
+            orden_columnas.map(
+                (indice_columna) => matriz[indice_fila][indice_columna],
+            ),
         );
     }
 
-    function calcular_clausura_transitiva(matriz) {
-        const matriz_caminos = matriz.map((fila) => [...fila]);
-        const cantidad = matriz_caminos.length;
+    function crear_orden_parcial(orden, cantidad_ordenada) {
+        const ordenados = orden.slice(0, cantidad_ordenada);
+        const pendientes = Array.from({ length: orden.length }, (_, indice) =>
+            indice,
+        ).filter((indice) => !ordenados.includes(indice));
 
-        for (let intermedio = 0; intermedio < cantidad; intermedio++) {
-            for (let origen = 0; origen < cantidad; origen++) {
-                if (!matriz_caminos[origen][intermedio]) continue;
+        return [...ordenados, ...pendientes];
+    }
 
-                for (let destino = 0; destino < cantidad; destino++) {
-                    if (matriz_caminos[intermedio][destino]) {
-                        matriz_caminos[origen][destino] = 1;
-                    }
+    function crear_orden_filas(matriz_caminos) {
+        return matriz_caminos
+            .map((fila, indice) => ({
+                indice,
+                cantidad_unos: fila.reduce(
+                    (total, valor) => total + valor,
+                    0,
+                ),
+                primer_uno: fila.indexOf(1),
+                fila,
+            }))
+            .sort((fila_a, fila_b) => {
+                const orden_por_cantidad =
+                    fila_b.cantidad_unos - fila_a.cantidad_unos;
+                if (orden_por_cantidad !== 0) return orden_por_cantidad;
+
+                const orden_por_primer_uno =
+                    fila_a.primer_uno - fila_b.primer_uno;
+                if (orden_por_primer_uno !== 0) {
+                    return orden_por_primer_uno;
                 }
-            }
-        }
 
-        return matriz_caminos;
-    }
+                for (
+                    let columna = 0;
+                    columna < fila_a.fila.length;
+                    columna++
+                ) {
+                    const orden_por_patron =
+                        fila_b.fila[columna] - fila_a.fila[columna];
+                    if (orden_por_patron !== 0) return orden_por_patron;
+                }
 
-    function reordenar_matriz(matriz, orden) {
-        return orden.map((indice_fila) =>
-            orden.map((indice_columna) => matriz[indice_fila][indice_columna]),
-        );
-    }
-
-    function reordenar_solo_filas(matriz, orden) {
-        return orden.map((indice) => [...matriz[indice]]);
+                return fila_a.indice - fila_b.indice;
+            })
+            .map((fila) => fila.indice);
     }
 
     function detectar_componentes_fuertemente_conexas(matriz_caminos) {
-        const sin_agrupar = new Set(
+        const pendientes = new Set(
             Array.from({ length: matriz_caminos.length }, (_, indice) => indice),
         );
         const componentes = [];
 
-        while (sin_agrupar.size > 0) {
-            const origen = sin_agrupar.values().next().value;
-            const componente = [...sin_agrupar].filter(
+        while (pendientes.size > 0) {
+            const origen = pendientes.values().next().value;
+            const componente = [...pendientes].filter(
                 (destino) =>
                     matriz_caminos[origen][destino] &&
                     matriz_caminos[destino][origen],
             );
-            componente.forEach((indice) => sin_agrupar.delete(indice));
+
+            componente.forEach((nodo) => pendientes.delete(nodo));
             componentes.push(componente);
         }
 
@@ -277,26 +237,206 @@
         );
     }
 
-    function calcular_datos_algoritmo(matriz) {
-        const matriz_entrada_caminos = agregar_diagonal(matriz);
-        const matriz_caminos = calcular_clausura_transitiva(
-            matriz_entrada_caminos,
-        );
+    function calcular_datos_algoritmo(matriz, registrar_pasos = true) {
+        validar_matriz(matriz);
+        const cantidad = matriz.length;
+        const pasos = [];
+        const matriz_caminos = matriz.map((fila) => [...fila]);
+
+        function registrar_paso(datos) {
+            if (!registrar_pasos) return;
+
+            pasos.push({
+                matriz: matriz_caminos.map((fila) => [...fila]),
+                ...datos,
+            });
+        }
+
+        registrar_paso({
+            fase: "amistades",
+            tipo: "amistades",
+            titulo: "Matriz de adyacencia",
+        });
+
+        for (let nodo = 0; nodo < cantidad; nodo++) {
+            matriz_caminos[nodo][nodo] = 1;
+            registrar_paso({
+                fase: "alcance",
+                tipo: "diagonal",
+                nodo_actual: nodo,
+                titulo: `Agregar la diagonal del nodo ${nodo + 1}`,
+            });
+        }
+
+        for (let origen = 0; origen < cantidad; origen++) {
+            const visitados = new Set([origen]);
+            const pendientes = [origen];
+            const predecesores = new Map();
+
+            while (pendientes.length > 0) {
+                const actual = pendientes.pop();
+                const destinos = matriz[actual]
+                    .map((hay_arista, destino) =>
+                        hay_arista ? destino : -1,
+                    )
+                    .filter(
+                        (destino) =>
+                            destino !== -1 && !visitados.has(destino),
+                    )
+                    .reverse();
+
+                destinos.forEach((destino) => {
+                    visitados.add(destino);
+                    predecesores.set(destino, actual);
+                    pendientes.push(destino);
+
+                    let cambio_matriz = false;
+                    if (matriz_caminos[origen][destino] === 0) {
+                        matriz_caminos[origen][destino] = 1;
+                        cambio_matriz = true;
+                    }
+
+                    if (!cambio_matriz) return;
+
+                    const camino = [destino];
+                    let anterior = destino;
+                    while (anterior !== origen) {
+                        anterior = predecesores.get(anterior);
+                        camino.unshift(anterior);
+                    }
+
+                    registrar_paso({
+                        fase: "alcance",
+                        tipo: "camino",
+                        nodo_actual: actual,
+                        arista_actual: [actual, destino],
+                        celda_actual: [origen, destino],
+                        titulo: `Agregar camino ${origen + 1} → ${destino + 1}`,
+                        camino: camino.map((nodo) => nodo + 1),
+                    });
+                });
+            }
+        }
+
+        registrar_paso({
+            fase: "alcance",
+            tipo: "caminos-completos",
+            titulo: "Matriz de caminos completa",
+        });
+
         const componentes = detectar_componentes_fuertemente_conexas(
             matriz_caminos,
         );
-        const orden = componentes.flat();
-        const filas_ordenadas = reordenar_solo_filas(matriz_caminos, orden);
-        const matriz_reordenada = reordenar_matriz(matriz_caminos, orden);
+        const orden = crear_orden_filas(matriz_caminos);
+        const posicion_nodo = new Map(
+            orden.map((nodo, indice) => [nodo, indice]),
+        );
+        componentes.sort(
+            (componente_a, componente_b) =>
+                Math.min(
+                    ...componente_a.map((nodo) => posicion_nodo.get(nodo)),
+                ) -
+                Math.min(
+                    ...componente_b.map((nodo) => posicion_nodo.get(nodo)),
+                ),
+        );
+        const orden_original = Array.from(
+            { length: cantidad },
+            (_, indice) => indice,
+        );
 
-        return {
-            matriz_entrada_caminos,
+        for (
+            let cantidad_ordenada = 1;
+            cantidad_ordenada <= cantidad;
+            cantidad_ordenada++
+        ) {
+            const orden_filas = crear_orden_parcial(
+                orden,
+                cantidad_ordenada,
+            );
+
+            registrar_paso({
+                fase: "orden",
+                tipo: "orden-fila",
+                cantidad_ordenada,
+                orden_filas,
+                orden_columnas: orden_original,
+                matriz: reordenar_matriz(
+                    matriz_caminos,
+                    orden_filas,
+                    orden_original,
+                ),
+                titulo: `Ordenar fila ${cantidad_ordenada} de ${cantidad}`,
+            });
+        }
+
+        for (
+            let cantidad_ordenada = 1;
+            cantidad_ordenada <= cantidad;
+            cantidad_ordenada++
+        ) {
+            const orden_columnas = crear_orden_parcial(
+                orden,
+                cantidad_ordenada,
+            );
+
+            registrar_paso({
+                fase: "orden",
+                tipo: "orden-columna",
+                cantidad_ordenada,
+                orden_filas: orden,
+                orden_columnas,
+                matriz: reordenar_matriz(
+                    matriz_caminos,
+                    orden,
+                    orden_columnas,
+                ),
+                titulo: `Ordenar columna ${cantidad_ordenada} de ${cantidad}`,
+            });
+        }
+
+        const matriz_ordenada = reordenar_matriz(
             matriz_caminos,
             orden,
-            filas_ordenadas,
-            matriz_reordenada,
+            orden,
+        );
+        if (registrar_pasos) {
+            componentes.forEach((componente, indice_componente) => {
+                pasos.push({
+                    fase: "grupos",
+                    tipo: "componente",
+                    matriz: matriz_ordenada.map((fila) => [...fila]),
+                    orden_filas: orden,
+                    orden_columnas: orden,
+                    componentes_mostradas: indice_componente + 1,
+                    titulo: `Mostrar componente ${indice_componente + 1}`,
+                });
+            });
+        }
+
+        return {
             componentes,
+            matriz_caminos,
+            pasos,
         };
+    }
+
+    function validar_matriz(matriz) {
+        validar_cantidad(Array.isArray(matriz) ? matriz.length : NaN);
+        const cantidad = matriz.length;
+
+        matriz.forEach((fila, indice_fila) => {
+            if (
+                !Array.isArray(fila) ||
+                fila.length !== cantidad ||
+                fila.some((valor) => valor !== 0 && valor !== 1) ||
+                fila[indice_fila] !== 0
+            ) {
+                throw new TypeError(
+                    "La matriz debe ser cuadrada, contener solo 0 y 1, y no incluir lazos.",
+                );
+            }
+        });
     }
 
     function crear_mapa_colores_componentes(componentes, cantidad_nodos) {
@@ -343,6 +483,7 @@
     }
 
     window.CoonectowskiGraph = Object.freeze({
+        CANTIDAD_MINIMA_USUARIOS,
         CANTIDAD_MAXIMA_USUARIOS,
         color_nodo_neutro,
         color_arista_neutra,

@@ -1689,6 +1689,79 @@ svg.graph g[data-action="pick-node"] circle {
         gap 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+.algorithm-progress {
+    display: grid;
+    width: 100%;
+    gap: 11px;
+}
+
+.algorithm-phases {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.phase-indicator {
+    padding: 7px 8px;
+    border: 1px solid #eeebe4;
+    border-radius: 8px;
+    color: #99968c;
+    background: #fbfaf7;
+    font-size: 9px;
+    font-weight: 600;
+    text-align: center;
+    transition:
+        color 0.25s ease,
+        border-color 0.25s ease,
+        background-color 0.25s ease;
+}
+
+.phase-indicator.completed {
+    border-color: #d7e9ed;
+    color: #587d83;
+    background: #f2f8f8;
+}
+
+.phase-indicator.active {
+    border-color: var(--accent);
+    color: #fff;
+    background: var(--accent);
+}
+
+.algorithm-progress-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    color: #88867e;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+}
+
+.algorithm-progress-heading strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+}
+
+.algorithm-progress-track {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8e5de;
+}
+
+.algorithm-progress-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 0.3s ease;
+}
+
 .algorithm-graph,
 .matrix-column {
     width: 100%;
@@ -1716,16 +1789,6 @@ svg.graph g[data-action="pick-node"] circle {
         border-width 0.42s ease;
 }
 
-.matrix-heading {
-    display: grid;
-    gap: 8px;
-    margin-bottom: 15px;
-}
-
-.matrix-heading .section-kicker {
-    color: var(--accent);
-}
-
 .matrix-meta {
     display: flex;
     align-items: center;
@@ -1741,17 +1804,6 @@ svg.graph g[data-action="pick-node"] circle {
     color: #716b63;
     font-family: var(--mono);
     font-weight: 700;
-}
-
-.matrix-explainer {
-    min-height: 31px;
-    color: #77766e;
-    font-size: 11px;
-    line-height: 1.55;
-}
-
-.matrix-explainer b {
-    color: var(--accent);
 }
 
 .matrix-scroll {
@@ -1812,20 +1864,44 @@ table.matrix td.diag {
     color: #e37d59;
 }
 
-table.matrix-medium th,
-table.matrix-medium td {
-    width: 22px;
-    min-width: 22px;
-    height: 22px;
-    font-size: 9px;
+table.matrix th.matrix-focus {
+    background: #fff0d9;
+    color: #8f5714;
 }
 
-table.matrix-large th,
-table.matrix-large td {
-    width: 18px;
-    min-width: 18px;
-    height: 18px;
-    font-size: 8px;
+table.matrix th.matrix-row-active,
+table.matrix td.matrix-row-active {
+    background-color: #e2f3f5;
+    color: #176f7b;
+}
+
+table.matrix th.matrix-column-active,
+table.matrix td.matrix-column-active {
+    background-color: #e2f3f5;
+    color: #176f7b;
+}
+
+table.matrix th.matrix-row-active,
+table.matrix th.matrix-column-active {
+    box-shadow: inset 0 0 0 1px #63b7c1;
+    color: #125c66;
+    font-weight: 800;
+}
+
+table.matrix td.matrix-row-active.matrix-column-active {
+    background-color: #b8e3e7;
+    box-shadow: inset 0 0 0 2px #3999a5;
+    color: #104e57;
+    font-weight: 800;
+}
+
+table.matrix td.matrix-edge-active {
+    position: relative;
+    outline: 2px solid #f0a84a;
+    outline-offset: -2px;
+    background: #fff0d9;
+    color: #8f5714;
+    font-weight: 800;
 }
 
 .algo-nav {
@@ -1940,6 +2016,13 @@ table.matrix-large td {
     font-weight: 500;
 }
 
+.scc-definition {
+    margin: -4px 0 20px;
+    color: #77766e;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
 .community-card {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -2038,6 +2121,21 @@ table.matrix-large td {
 
     .algorithm-intro .matrix-column {
         max-height: 0;
+    }
+
+    .algorithm-progress-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .algorithm-phases {
+        gap: 4px;
+    }
+
+    .phase-indicator {
+        padding: 7px 3px;
+        font-size: 8px;
     }
 
     .matrix-column {

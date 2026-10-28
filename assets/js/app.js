@@ -1,4 +1,5 @@
 const {
+    CANTIDAD_MINIMA_USUARIOS,
     CANTIDAD_MAXIMA_USUARIOS,
     color_nodo_neutro,
     color_arista_neutra,
@@ -9,15 +10,6 @@ const {
     crear_mapa_colores_componentes,
     obtener_color_componente,
 } = window.CoonectowskiGraph;
-
-const titulos_pasos = [
-    "Matriz de adyacencia",
-    "Matriz de caminos",
-    "Ordenar filas",
-    "Reordenar columnas",
-];
-const nombres_cortos_pasos = ["Amistades", "Alcance", "Orden", "Grupos"];
-const ULTIMO_PASO_ALGORITMO = titulos_pasos.length - 1;
 
 let estado = null;
 let configuraciones_grafos = [];
@@ -35,6 +27,12 @@ const renderizadores_pantalla = {
     algorithm: renderizar_pantalla_algoritmo,
     result: renderizar_pantalla_resultado,
 };
+const fases_algoritmo = [
+    { id: "amistades", nombre: "Amistades" },
+    { id: "alcance", nombre: "Alcance" },
+    { id: "orden", nombre: "Orden" },
+    { id: "grupos", nombre: "Componentes" },
+];
 
 function crear_estado_inicial() {
     return {
@@ -45,12 +43,8 @@ function crear_estado_inicial() {
         matriz: [],
         nodo_seleccionado_arista: null,
         paso_algoritmo: -1,
-        matriz_entrada_caminos: null,
-        matriz_caminos: null,
-        filas_ordenadas: null,
-        orden: null,
-        matriz_reordenada: null,
         componentes: null,
+        pasos: [],
     };
 }
 
@@ -63,7 +57,7 @@ function renderizar_grafo(opciones) {
     const indice = configuraciones_grafos.push(opciones) - 1;
     return `
         <div class="network-frame ${opciones.previsualizacion ? "preview-frame" : ""}">
-            <div class="network-canvas" data-network-index="${indice}" role="img" aria-label="Red social con ${opciones.n} personas"></div>
+            <div class="network-canvas" data-network-index="${indice}" role="img" aria-label="Grafo dirigido con ${opciones.n} nodos"></div>
             <div class="network-controls" aria-label="Controles de la red">
                 <button type="button" data-action="zoom-in" aria-label="Acercar">+</button>
                 <button type="button" data-action="zoom-out" aria-label="Alejar">−</button>
@@ -71,6 +65,52 @@ function renderizar_grafo(opciones) {
             </div>
             <div class="network-person" aria-live="polite">Selecciona un punto para ver quién es</div>
         </div>`;
+}
+
+function crear_datos_aristas(matriz, mapa_colores, componentes) {
+    const cantidad = matriz.length;
+    const componente_por_nodo = new Array(cantidad).fill(null);
+
+    componentes?.forEach((componente, indice_componente) => {
+        componente.forEach((nodo) => {
+            componente_por_nodo[nodo] = indice_componente;
+        });
+    });
+
+    const aristas = [];
+    for (let fila = 0; fila < cantidad; fila++) {
+        for (let columna = fila + 1; columna < cantidad; columna++) {
+            const ida = Boolean(matriz[fila][columna]);
+            const vuelta = Boolean(matriz[columna][fila]);
+            if (!ida && !vuelta) continue;
+
+            const origen = ida ? fila : columna;
+            const destino = ida ? columna : fila;
+            const bidireccional = ida && vuelta;
+            const misma_componente =
+                !componentes ||
+                componente_por_nodo[origen] ===
+                    componente_por_nodo[destino];
+
+            aristas.push({
+                data: {
+                    id: `${origen}-${destino}`,
+                    source: String(origen),
+                    target: String(destino),
+                    color: mapa_colores?.[origen] ?? color_arista_neutra,
+                    bidireccional,
+                },
+                classes: [
+                    bidireccional ? "bidirectional" : "",
+                    misma_componente ? "" : "component-external",
+                ]
+                    .filter(Boolean)
+                    .join(" "),
+            });
+        }
+    }
+
+    return aristas;
 }
 
 function crear_elementos_grafo(opciones) {
@@ -84,25 +124,11 @@ function crear_elementos_grafo(opciones) {
         },
         classes: opciones.seleccionado === indice ? "seleccionado" : "",
     }));
-    const aristas = [];
-    for (let fila = 0; fila < cantidad; fila++) {
-        for (let columna = 0; columna < cantidad; columna++) {
-            if (fila === columna || !opciones.matriz[fila][columna]) {
-                continue;
-            }
-
-            aristas.push({
-                data: {
-                    id: `${fila}-${columna}`,
-                    source: String(fila),
-                    target: String(columna),
-                    color:
-                        opciones.mapa_colores?.[fila] ??
-                        color_arista_neutra,
-                },
-            });
-        }
-    }
+    const aristas = crear_datos_aristas(
+        opciones.matriz,
+        opciones.mapa_colores,
+        opciones.componentes,
+    );
     return [...nodos, ...aristas];
 }
 
@@ -149,12 +175,14 @@ function crear_posiciones_componentes(instancia, componentes) {
     return posiciones;
 }
 
-function crear_opciones_distribucion(cantidad, posiciones) {
+function crear_opciones_distribucion(posiciones) {
     return {
         name: posiciones ? "preset" : "random",
-        animate: false,
+        animate: Boolean(posiciones),
+        animationDuration: posiciones ? 700 : 0,
+        animationEasing: "ease-in-out",
         fit: false,
-        padding: cantidad > 12 ? 32 : 42,
+        padding: 42,
         positions: posiciones
             ? (nodo) => posiciones.get(nodo.id())
             : undefined,
@@ -172,7 +200,7 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
         : null;
 
     const distribucion = instancia.layout(
-        crear_opciones_distribucion(opciones.n, posiciones),
+        crear_opciones_distribucion(posiciones),
     );
     if (es_previsualizacion) {
         distribucion_previsualizacion = distribucion;
@@ -181,7 +209,14 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
     distribucion.one("layoutstop", () => {
         const indice = Number(lienzo.dataset.networkIndex);
         if (configuraciones_grafos[indice] !== opciones) return;
-        instancia.fit(instancia.elements(), opciones.n > 12 ? 32 : 42);
+        if (posiciones) {
+            instancia.animate(
+                { fit: { eles: instancia.elements(), padding: 42 } },
+                { duration: 350, easing: "ease-in-out" },
+            );
+        } else {
+            instancia.fit(instancia.elements(), 42);
+        }
     });
     distribucion.run();
 }
@@ -216,7 +251,7 @@ function posicionar_grafos() {
             );
         }
 
-        const tamano_nodo = cantidad > 70 ? 22 : cantidad > 40 ? 24 : 29;
+        const tamano_nodo = 29;
         const instancia = window.cytoscape({
             container: lienzo,
             elements: crear_elementos_grafo(opciones),
@@ -262,14 +297,52 @@ function posicionar_grafos() {
                 {
                     selector: "edge",
                     style: {
-                        width: cantidad > 50 ? 1 : 1.5,
+                        width: 1.5,
                         "line-color": "data(color)",
                         "target-arrow-color": "data(color)",
                         "target-arrow-shape": "triangle",
+                        "source-arrow-color": "data(color)",
+                        "source-arrow-shape": "none",
                         "arrow-scale": 0.8,
                         opacity: 0.5,
                         "curve-style": "bezier",
                         "overlay-opacity": 0,
+                        "transition-property":
+                            "line-color, target-arrow-color, source-arrow-color, width, opacity",
+                        "transition-duration": 350,
+                    },
+                },
+                {
+                    selector: "edge.bidirectional",
+                    style: {
+                        "source-arrow-shape": "triangle",
+                    },
+                },
+                {
+                    selector: "edge.component-external",
+                    style: {
+                        opacity: 0,
+                        events: "no",
+                    },
+                },
+                {
+                    selector: "node.analysis-current",
+                    style: {
+                        "background-color": "#f0a84a",
+                        "border-color": "#8f5714",
+                        "border-width": 3,
+                        "z-index": 20,
+                    },
+                },
+                {
+                    selector: "edge.analysis-edge-active",
+                    style: {
+                        width: 3,
+                        "line-color": "#f0a84a",
+                        "target-arrow-color": "#f0a84a",
+                        "source-arrow-color": "#f0a84a",
+                        opacity: 1,
+                        "z-index": 20,
                     },
                 },
             ],
@@ -308,15 +381,10 @@ function actualizar_vista_previa(n) {
         previsualizacion: true,
     };
     configuraciones_grafos[indice] = opciones;
-    lienzo.setAttribute("aria-label", `Red social con ${n} personas`);
+    lienzo.setAttribute("aria-label", `Grafo dirigido con ${n} nodos`);
     distribucion_previsualizacion?.stop();
     instancia.elements().remove();
     instancia.add(crear_elementos_grafo(opciones));
-    instancia.nodes().style({
-        width: n > 70 ? 22 : n > 40 ? 24 : 29,
-        height: n > 70 ? 22 : n > 40 ? 24 : 29,
-    });
-    instancia.edges().style({ width: n > 50 ? 1 : 1.5 });
     ejecutar_distribucion(instancia, lienzo, opciones);
 }
 
@@ -355,7 +423,7 @@ window.addEventListener("resize", () => {
         if (instancia) {
             instancia.fit(
                 instancia.elements(),
-                estado.n > 12 ? 32 : 42,
+                42,
             );
         }
     });
@@ -369,10 +437,19 @@ function renderizar_tabla_matriz(
     opciones = {},
 ) {
     const cantidad = matriz.length;
-    const tamano =
-        cantidad > 50 ? "large" : cantidad > 24 ? "medium" : "small";
+    const tamano = "small";
     const encabezado_tabla = `<thead><tr><th></th>${etiquetas_columnas
-        .map((etiqueta) => `<th scope="col">${etiqueta}</th>`)
+        .map(
+            (etiqueta, indice) =>
+                `<th class="${[
+                    opciones.nodo_actual === indice ? "matrix-focus" : "",
+                    opciones.columna_orden_actual === indice
+                        ? "matrix-column-active"
+                        : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")}" scope="col">${etiqueta}</th>`,
+        )
         .join("")}</tr></thead>`;
     let filas_html = "";
 
@@ -386,18 +463,37 @@ function renderizar_tabla_matriz(
         ) {
             const valor = matriz[indice_fila][indice_columna];
             let clases = valor ? "one" : "";
+            if (opciones.fila_orden_actual === indice_fila) {
+                clases += " matrix-row-active";
+            }
+            if (opciones.columna_orden_actual === indice_columna) {
+                clases += " matrix-column-active";
+            }
             if (
-                opciones.fondo_diagonal &&
+                opciones.diagonal_actual === indice_fila &&
                 indice_fila === indice_columna
             ) {
                 clases += " diag";
             }
+            if (
+                opciones.arista_actual?.[0] === indice_fila &&
+                opciones.arista_actual?.[1] === indice_columna
+            ) {
+                clases += " matrix-edge-active";
+            }
+            if (
+                opciones.celda_actual?.[0] === indice_fila &&
+                opciones.celda_actual?.[1] === indice_columna
+            ) {
+                clases += " matrix-path-active";
+            }
 
             let estilo_celda = "";
-            if (opciones.bloque_de) {
-                const componente_fila = opciones.bloque_de[indice_fila];
+            if (opciones.bloque_de_filas && opciones.bloque_de_columnas) {
+                const componente_fila =
+                    opciones.bloque_de_filas[indice_fila];
                 const componente_columna =
-                    opciones.bloque_de[indice_columna];
+                    opciones.bloque_de_columnas[indice_columna];
 
                 if (
                     componente_fila !== undefined &&
@@ -415,7 +511,15 @@ function renderizar_tabla_matriz(
             celdas_html += `<td class="${clases}" ${estilo_celda}>${valor}</td>`;
         }
 
-        filas_html += `<tr><th scope="row">${etiquetas_filas[indice_fila]}</th>${celdas_html}</tr>`;
+        const clase_fila = [
+            opciones.nodo_actual === indice_fila ? "matrix-focus" : "",
+            opciones.fila_orden_actual === indice_fila
+                ? "matrix-row-active"
+                : "",
+        ]
+            .filter(Boolean)
+            .join(" ");
+        filas_html += `<tr><th class="${clase_fila}" scope="row">${etiquetas_filas[indice_fila]}</th>${celdas_html}</tr>`;
     }
 
     return `
@@ -449,18 +553,18 @@ function renderizar_pantalla_configuracion() {
             <div class="hero-copy">
                 <span class="eyebrow"><span class="eyebrow-line"></span> TU RED, EN PERSPECTIVA</span>
                 <h1 class="hero-title">Todo está<br /><em>conectado.</em></h1>
-                <p class="hero-sub">Descubre los grupos que forman tus conexiones.</p>
+                <p class="hero-sub">Crea un grafo dirigido y descubre sus componentes fuertemente conexas.</p>
             </div>
 
             <div class="panel config-panel">
                 <div class="config-grid">
                     <div class="config-controls">
-                        <div class="section-kicker">TAMAÑO DE LA RED</div>
+                        <div class="section-kicker">CANTIDAD DE NODOS</div>
                         <div class="count-row">
                             <div class="count-display">${n}</div>
                             <div class="count-slider">
-                                <input aria-label="Cantidad de personas" type="range" min="4" max="${CANTIDAD_MAXIMA_USUARIOS}" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
-                                <div class="range-labels"><span>4</span><span>${CANTIDAD_MAXIMA_USUARIOS}</span></div>
+                                <input aria-label="Cantidad de nodos" type="range" min="${CANTIDAD_MINIMA_USUARIOS}" max="${CANTIDAD_MAXIMA_USUARIOS}" value="${n}" step="1" data-action="set-n" style="--fill:${porcentaje_relleno}%">
+                                <div class="range-labels"><span>${CANTIDAD_MINIMA_USUARIOS}</span><span>${CANTIDAD_MAXIMA_USUARIOS}</span></div>
                             </div>
                         </div>
 
@@ -508,7 +612,7 @@ function obtener_datos_previsualizacion(n) {
     }
 
     const matriz = generar_matriz_aleatoria(n);
-    const { componentes } = calcular_datos_algoritmo(matriz);
+    const { componentes } = calcular_datos_algoritmo(matriz, false);
     cache_previsualizacion.cantidad = n;
     cache_previsualizacion.matriz = matriz;
     cache_previsualizacion.mapa_colores = crear_mapa_colores_componentes(
@@ -519,7 +623,11 @@ function obtener_datos_previsualizacion(n) {
 }
 
 function calcular_porcentaje_red(cantidad) {
-    return ((cantidad - 4) / (CANTIDAD_MAXIMA_USUARIOS - 4)) * 100;
+    return (
+        ((cantidad - CANTIDAD_MINIMA_USUARIOS) /
+            (CANTIDAD_MAXIMA_USUARIOS - CANTIDAD_MINIMA_USUARIOS)) *
+        100
+    );
 }
 
 function crear_opciones_previsualizacion(cantidad) {
@@ -543,7 +651,7 @@ function renderizar_pantalla_construccion() {
     return `
         <section class="screen">
             <div class="screen-heading">
-                <div><span class="eyebrow"><span class="eyebrow-line"></span> ARMA TU RED</span><h1 class="page-title">¿Quién conoce a quién?</h1></div>
+                <div><span class="eyebrow"><span class="eyebrow-line"></span> ARMA TU GRAFO DIRIGIDO</span><h1 class="page-title">¿A quién apunta cada arista?</h1></div>
                 <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
             </div>
             <div class="panel workspace-panel">
@@ -565,7 +673,7 @@ function renderizar_pantalla_construccion() {
                                         })}
                         </div>
                         <div class="stat-line">
-                            <span><b>${n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${cantidad_conexiones}</b> CONEXIONES</span>
+                            <span><b>${n}</b> NODOS</span><span class="stat-divider"></span><span><b>${cantidad_conexiones}</b> ARISTAS DIRIGIDAS</span>
                         </div>
                     </div>
                     <aside class="connections-panel">
@@ -595,17 +703,17 @@ function obtener_conexiones_manuales() {
 
     const lista_conexiones = conexiones.length
         ? conexiones.join("")
-        : `<div class="empty-state"><span class="empty-icon">⌘</span><span>Tu red empieza aquí.<br /><b>Elige dos personas</b> para conectar.</span></div>`;
+        : `<div class="empty-state"><span class="empty-icon">⌘</span><span>Tu grafo empieza aquí.<br /><b>Elige un origen y un destino</b> para dibujar una flecha.</span></div>`;
     return {
         cantidad: conexiones.length,
-        html: `<div class="connections-heading"><div><span class="section-kicker">TU CÍRCULO</span><h2>Conexiones</h2></div><span class="connection-count">${conexiones.length}</span></div><div class="edge-chip-row">${lista_conexiones}</div>${conexiones.length ? `<button class="text-button" data-action="clear-edges">Borrar todas <span>×</span></button>` : ""}`,
+        html: `<div class="connections-heading"><div><span class="section-kicker">ARISTAS</span><h2>Conexiones dirigidas</h2></div><span class="connection-count">${conexiones.length}</span></div><div class="edge-chip-row">${lista_conexiones}</div>${conexiones.length ? `<button class="text-button" data-action="clear-edges">Borrar todas <span>×</span></button>` : ""}`,
     };
 }
 
 function obtener_texto_indicacion_manual() {
     return estado.nodo_seleccionado_arista === null
-        ? "Toca dos personas para unirlas"
-        : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> elegida · toca a otra`;
+        ? "Toca primero el nodo de origen y luego el nodo de destino"
+        : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> es el origen · elige el destino`;
 }
 
 function actualizar_interfaz_construccion(instancia) {
@@ -623,7 +731,7 @@ function actualizar_interfaz_construccion(instancia) {
 
     const conexiones = obtener_conexiones_manuales();
     indicacion.innerHTML = obtener_texto_indicacion_manual();
-    resumen.innerHTML = `<span><b>${estado.n}</b> PERSONAS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> CONEXIONES</span>`;
+    resumen.innerHTML = `    <span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
     panel_conexiones.innerHTML = conexiones.html;
     if (!instancia) return;
 
@@ -634,139 +742,193 @@ function actualizar_interfaz_construccion(instancia) {
         );
     });
 
-    const aristas_actuales = new Set(
-        instancia.edges().map((arista) => arista.id()),
+    const aristas_deseadas = new Map(
+        crear_datos_aristas(estado.matriz).map((arista) => [
+            arista.data.id,
+            arista,
+        ]),
     );
-    const aristas_deseadas = new Set();
-    for (let fila = 0; fila < estado.n; fila++) {
-        for (let columna = 0; columna < estado.n; columna++) {
-            if (fila === columna) continue;
-            if (!estado.matriz[fila][columna]) continue;
 
-            const id = `${fila}-${columna}`;
-            aristas_deseadas.add(id);
-            if (!aristas_actuales.has(id)) {
-                instancia.add({
-                    data: {
-                        id,
-                        source: String(fila),
-                        target: String(columna),
-                        color: color_arista_neutra,
-                    },
-                });
-            }
-        }
-    }
     instancia.edges().forEach((arista) => {
-        if (!aristas_deseadas.has(arista.id())) arista.remove();
+        const deseada = aristas_deseadas.get(arista.id());
+        if (
+            !deseada ||
+            arista.source().id() !== deseada.data.source ||
+            arista.target().id() !== deseada.data.target
+        ) {
+            arista.remove();
+        } else {
+            arista.data("bidireccional", deseada.data.bidireccional);
+            arista.toggleClass(
+                "bidirectional",
+                deseada.data.bidireccional,
+            );
+            arista.data("color", deseada.data.color);
+            aristas_deseadas.delete(arista.id());
+        }
     });
+
+    aristas_deseadas.forEach((arista) => instancia.add(arista));
 }
 
 /* Explicación del algoritmo paso a paso */
 function renderizar_puntos_pasos() {
-    return titulos_pasos
-        .map((_, indice) => {
-            const clase =
-                indice === estado.paso_algoritmo
-                    ? "step-dot active"
-                    : indice < estado.paso_algoritmo
-                      ? "step-dot done"
-                      : "step-dot";
-            const paso_actual = indice === estado.paso_algoritmo;
+    const indice_paso = Math.max(estado.paso_algoritmo, 0);
+    const paso = estado.pasos[indice_paso];
+    if (!paso) return "";
 
-            return `<div class="${clase}" aria-current="${paso_actual ? "step" : "false"}"><span class="sd-t">${nombres_cortos_pasos[indice]}</span></div>`;
+    const cantidad_pasos = estado.pasos.length;
+    const progreso = ((indice_paso + 1) / cantidad_pasos) * 100;
+    const indice_fase = fases_algoritmo.findIndex(
+        (fase) => fase.id === paso.fase,
+    );
+    const pasos_fase = estado.pasos.filter(
+        (paso_actual) => paso_actual.fase === paso.fase,
+    );
+    const indice_paso_fase = pasos_fase.indexOf(paso) + 1;
+    const nombre_fase = fases_algoritmo[indice_fase]?.nombre;
+    const indicador_fases = fases_algoritmo
+        .map((fase, indice) => {
+            const estado_fase =
+                indice === indice_fase
+                    ? "active"
+                    : indice < indice_fase
+                      ? "completed"
+                      : "";
+            return `<span class="phase-indicator ${estado_fase}" ${indice === indice_fase ? 'aria-current="step"' : ""}>${fase.nombre}</span>`;
         })
         .join("");
+
+    return `
+        <div
+            class="algorithm-progress"
+            role="status"
+            aria-label="Fase ${indice_fase + 1} de ${fases_algoritmo.length}, ${nombre_fase}. Paso ${indice_paso_fase} de ${pasos_fase.length}: ${paso.titulo}"
+        >
+            <div class="algorithm-phases" aria-label="Fases del análisis">
+                ${indicador_fases}
+            </div>
+            <div class="algorithm-progress-heading">
+                <span>FASE ${indice_fase + 1} DE ${fases_algoritmo.length} · ${nombre_fase.toUpperCase()} · PASO ${indice_paso_fase} DE ${pasos_fase.length}</span>
+                <strong>${paso.titulo}</strong>
+            </div>
+            <div
+                class="algorithm-progress-track"
+                role="progressbar"
+                aria-valuemin="1"
+                aria-valuemax="${cantidad_pasos}"
+                aria-valuenow="${indice_paso + 1}"
+                aria-label="Progreso del algoritmo"
+            >
+                <span style="width: ${progreso}%"></span>
+            </div>
+        </div>`;
 }
 
 function obtener_contenido_paso_algoritmo() {
-    const paso_actual = Math.max(estado.paso_algoritmo, 0);
-    const etiquetas_originales = Array.from(
+    const paso = estado.pasos[Math.max(estado.paso_algoritmo, 0)];
+    const etiquetas = Array.from(
         { length: estado.n },
         (_, indice) => String(indice + 1),
     );
-    const etiquetas_ordenadas = estado.orden.map(
-        (indice) => String(indice + 1),
-    );
-    let matriz;
-    let etiquetas_filas;
-    let etiquetas_columnas;
-    let opciones_matriz = {};
-    let explicacion;
-    let mapa_colores = null;
+    if (!paso) {
+        throw new Error("No hay datos para mostrar en este paso del algoritmo.");
+    }
 
-    switch (paso_actual) {
-        case 0:
-            matriz = estado.matriz_entrada_caminos;
-            etiquetas_filas = etiquetas_originales;
-            etiquetas_columnas = etiquetas_originales;
-            opciones_matriz = { fondo_diagonal: true };
-            explicacion =
-                "Un <b>1</b> marca una amistad. La diagonal conecta a cada persona consigo misma.";
-            break;
-        case 1:
-            matriz = estado.matriz_caminos;
-            etiquetas_filas = etiquetas_originales;
-            etiquetas_columnas = etiquetas_originales;
-            explicacion =
-                "Ahora vemos quién puede llegar a quién, incluso a través de amistades.";
-            break;
-        case 2:
-            matriz = estado.filas_ordenadas;
-            etiquetas_filas = etiquetas_ordenadas;
-            etiquetas_columnas = etiquetas_originales;
-            explicacion = "Ordenamos las personas por el tamaño de su grupo.";
-            break;
-        case 3: {
-            matriz = estado.matriz_reordenada;
-            etiquetas_filas = etiquetas_ordenadas;
-            etiquetas_columnas = etiquetas_ordenadas;
-            const posicion_por_indice = new Map(
-                estado.orden.map((indice, posicion) => [indice, posicion]),
-            );
-            const bloque_de = new Array(estado.n).fill(null);
+    const orden_filas =
+        paso.orden_filas ??
+        Array.from({ length: estado.n }, (_, indice) => indice);
+    const orden_columnas =
+        paso.orden_columnas ??
+        Array.from({ length: estado.n }, (_, indice) => indice);
+    const componente_por_nodo = new Array(estado.n).fill(null);
 
-            estado.componentes.forEach((componente, indice_comunidad) => {
-                componente.forEach((indice_persona) => {
-                    bloque_de[posicion_por_indice.get(indice_persona)] =
-                        indice_comunidad;
-                });
+    if (paso.tipo === "componente") {
+        estado.componentes.forEach((componente, indice_comunidad) => {
+            componente.forEach((nodo) => {
+                componente_por_nodo[nodo] =
+                    indice_comunidad < paso.componentes_mostradas
+                        ? indice_comunidad
+                        : null;
             });
-            opciones_matriz = { bloque_de };
-            mapa_colores = crear_mapa_colores_componentes(
-                estado.componentes,
-                estado.n,
-            );
-            explicacion = "Los bloques de color revelan las comunidades.";
-            break;
-        }
-        default:
-            throw new Error(`Paso de algoritmo desconocido: ${estado.paso_algoritmo}`);
+        });
     }
 
     return {
-        explicacion,
+        paso,
+        fase: paso.fase,
+        fase_titulo:
+            fases_algoritmo.find((fase) => fase.id === paso.fase)?.nombre ??
+            "",
         html_matriz_cuerpo: renderizar_tabla_matriz(
-            matriz,
-            etiquetas_filas,
-            etiquetas_columnas,
-            opciones_matriz,
+            paso.matriz,
+            orden_filas.map((indice) => etiquetas[indice]),
+            orden_columnas.map((indice) => etiquetas[indice]),
+            {
+                diagonal_actual:
+                    paso.tipo === "diagonal" ? paso.nodo_actual : null,
+                fila_orden_actual:
+                    paso.tipo === "orden-fila"
+                        ? paso.cantidad_ordenada - 1
+                        : null,
+                columna_orden_actual:
+                    paso.tipo === "orden-columna"
+                        ? paso.cantidad_ordenada - 1
+                        : null,
+                arista_actual: paso.arista_actual,
+                celda_actual: paso.celda_actual,
+                ...(paso.tipo === "componente"
+                    ? {
+                          bloque_de_filas: orden_filas.map(
+                              (nodo) => componente_por_nodo[nodo],
+                          ),
+                          bloque_de_columnas: orden_columnas.map(
+                              (nodo) => componente_por_nodo[nodo],
+                          ),
+                      }
+                    : {}),
+            },
         ),
-        mapa_colores,
+        mapa_colores:
+            paso.tipo === "componente"
+                ? crear_mapa_colores_componentes(
+                      estado.componentes.slice(
+                          0,
+                          paso.componentes_mostradas,
+                      ),
+                      estado.n,
+                  )
+                : null,
     };
 }
 
 function renderizar_navegacion_algoritmo() {
     const es_presentacion_grafo = estado.paso_algoritmo === -1;
     const texto_anterior =
-        estado.paso_algoritmo === 0 ? "← Ver grafo" : "← Atrás";
+        estado.paso_algoritmo === 0 ? "← Ver grafo" : "← Paso anterior";
+    const es_ultimo_paso =
+        estado.paso_algoritmo === estado.pasos.length - 1;
+    const siguiente_paso = estado.pasos[estado.paso_algoritmo + 1];
+    const siguiente_fase = fases_algoritmo.find(
+        (fase) => fase.id === siguiente_paso?.fase,
+    );
+    const cambia_fase =
+        siguiente_paso &&
+        estado.pasos[estado.paso_algoritmo]?.fase !== siguiente_paso.fase;
+    const texto_siguiente = es_presentacion_grafo
+        ? "Iniciar análisis"
+        : es_ultimo_paso
+          ? "Ver resultado"
+          : cambia_fase
+            ? `Continuar a ${siguiente_fase.nombre}`
+            : "Siguiente paso";
 
     return `
         <button class="btn btn-ghost" data-action="algo-prev" ${es_presentacion_grafo ? "hidden" : ""}>${texto_anterior}</button>
-        <button class="btn btn-primary" data-action="algo-next">${es_presentacion_grafo ? "Continuar a la matriz" : estado.paso_algoritmo === ULTIMO_PASO_ALGORITMO ? "Ver mis grupos" : "Continuar"} <span class="button-arrow">↗</span></button>`;
+        <button class="btn btn-primary" data-action="algo-next">${texto_siguiente} <span class="button-arrow">↗</span></button>`;
 }
 
-function actualizar_colores_grafo_algoritmo(mapa_colores) {
+function actualizar_colores_grafo_algoritmo(mapa_colores, paso) {
     const lienzo = document.querySelector(".algorithm-graph .network-canvas");
     if (!lienzo) return;
 
@@ -776,10 +938,38 @@ function actualizar_colores_grafo_algoritmo(mapa_colores) {
     instancia.nodes().forEach((nodo) => {
         const indice = Number(nodo.id());
         nodo.data("color", mapa_colores?.[indice] ?? color_nodo_neutro);
+        nodo.toggleClass("analysis-current", indice === paso.nodo_actual);
+    });
+    const componente_por_nodo = new Array(estado.n).fill(null);
+    estado.componentes.forEach((componente, indice_componente) => {
+        componente.forEach((nodo) => {
+            componente_por_nodo[nodo] = indice_componente;
+        });
     });
     instancia.edges().forEach((arista) => {
-        const indice = Number(arista.source().id());
-        arista.data("color", mapa_colores?.[indice] ?? color_arista_neutra);
+        const origen = Number(arista.source().id());
+        const destino = Number(arista.target().id());
+        arista.data(
+            "color",
+            mapa_colores?.[origen] ?? color_arista_neutra,
+        );
+        arista.toggleClass(
+            "component-external",
+            paso.tipo === "componente" &&
+                componente_por_nodo[origen] !==
+                    componente_por_nodo[destino],
+        );
+        arista.toggleClass(
+            "analysis-edge-active",
+            Boolean(
+                paso.arista_actual &&
+                    ((origen === paso.arista_actual[0] &&
+                        destino === paso.arista_actual[1]) ||
+                        (arista.data("bidireccional") &&
+                            origen === paso.arista_actual[1] &&
+                            destino === paso.arista_actual[0])),
+            ),
+        );
     });
 }
 
@@ -800,17 +990,22 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
 
     panel.classList.toggle("algorithm-intro", es_presentacion_grafo);
     document.querySelector(".algorithm-eyebrow-label").textContent =
-        es_presentacion_grafo ? "TU RED" : "ASÍ FUNCIONA";
+        es_presentacion_grafo
+            ? "TU RED"
+            : `FASE ${fases_algoritmo.findIndex((fase) => fase.id === contenido.fase) + 1} DE ${fases_algoritmo.length} · ${contenido.fase_titulo.toUpperCase()}`;
     document.querySelector(".algorithm-page-title").textContent =
-        es_presentacion_grafo ? "Así quedó tu red" : "Sigamos las conexiones";
+        es_presentacion_grafo
+            ? "Así quedó tu red"
+            : `Fase: ${contenido.fase_titulo}`;
     document.querySelector(".steps-nav").innerHTML = renderizar_puntos_pasos();
-    document.querySelector(".matrix-heading .matrix-explainer").innerHTML =
-        contenido.explicacion;
     document.querySelector(".matrix-column .matrix-scroll").outerHTML =
         contenido.html_matriz_cuerpo;
     document.querySelector(".algo-nav").innerHTML =
         renderizar_navegacion_algoritmo();
-    actualizar_colores_grafo_algoritmo(contenido.mapa_colores);
+    actualizar_colores_grafo_algoritmo(
+        contenido.mapa_colores,
+        contenido.paso,
+    );
 
     const movimiento_reducido = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
@@ -830,53 +1025,62 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     }
 
     if (ajustar_grafo) {
-        const ajustar_grafo = () =>
-            window.requestAnimationFrame(() => {
-                const lienzo = document.querySelector(
-                    ".algorithm-graph .network-canvas",
-                );
-                if (!lienzo) return;
+        const lienzo = document.querySelector(
+            ".algorithm-graph .network-canvas",
+        );
+        const instancia = lienzo
+            ? instancias_grafos[Number(lienzo.dataset.networkIndex)]
+            : null;
+        if (!instancia) return;
 
-                const instancia =
-                    instancias_grafos[Number(lienzo.dataset.networkIndex)];
-                if (!instancia) return;
+        const encuadrar_grafo = () => {
+            instancia.resize();
+            instancia.fit(instancia.elements(), 42);
+        };
 
-                instancia.resize();
-                const opciones_ajuste = {
-                    eles: instancia.elements(),
-                    padding: estado.n > 12 ? 32 : 42,
-                };
-
-                if (
-                    !movimiento_reducido &&
-                    typeof instancia.animate === "function"
-                ) {
-                    instancia.animate(
-                        { fit: opciones_ajuste },
-                        { duration: 420, easing: "ease-in-out-cubic" },
-                    );
-                } else {
-                    instancia.fit(
-                        opciones_ajuste.eles,
-                        opciones_ajuste.padding,
+        const hay_transicion_grafo =
+            transicionar_a_matriz || transicionar_al_grafo;
+        if (hay_transicion_grafo && !movimiento_reducido) {
+            const duracion_ajuste = 480;
+            const inicio_ajuste = window.performance.now();
+            const actualizar_encuadre_durante_transicion = (ahora) => {
+                encuadrar_grafo();
+                if (ahora - inicio_ajuste < duracion_ajuste) {
+                    window.requestAnimationFrame(
+                        actualizar_encuadre_durante_transicion,
                     );
                 }
-            });
+            };
 
-        ajustar_grafo();
+            window.requestAnimationFrame(
+                actualizar_encuadre_durante_transicion,
+            );
+        } else {
+            window.requestAnimationFrame(encuadrar_grafo);
+        }
     }
 }
 
 function renderizar_pantalla_algoritmo() {
     const n = estado.n;
     const es_presentacion_grafo = estado.paso_algoritmo === -1;
-    const { explicacion, html_matriz_cuerpo, mapa_colores } =
-        obtener_contenido_paso_algoritmo();
-
+    const contenido = obtener_contenido_paso_algoritmo();
+    const {
+        html_matriz_cuerpo,
+        mapa_colores,
+        fase,
+        fase_titulo,
+    } = contenido;
+    const etiqueta_fase = es_presentacion_grafo
+        ? "TU RED"
+        : `FASE ${fases_algoritmo.findIndex((etapa) => etapa.id === fase) + 1} DE ${fases_algoritmo.length} · ${fase_titulo.toUpperCase()}`;
+    const titulo_pantalla = es_presentacion_grafo
+        ? "Así quedó tu red"
+        : `Fase: ${fase_titulo}`;
     return `
   <section class="screen">
     <div class="screen-heading">
-      <div><span class="eyebrow"><span class="eyebrow-line"></span> <span class="algorithm-eyebrow-label">${es_presentacion_grafo ? "TU RED" : "ASÍ FUNCIONA"}</span></span><h1 class="page-title algorithm-page-title">${es_presentacion_grafo ? "Así quedó tu red" : "Sigamos las conexiones"}</h1></div>
+      <div><span class="eyebrow"><span class="eyebrow-line"></span> <span class="algorithm-eyebrow-label">${etiqueta_fase}</span></span><h1 class="page-title algorithm-page-title">${titulo_pantalla}</h1></div>
       <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
     </div>
     <div class="panel workspace-panel algorithm-panel ${es_presentacion_grafo ? "algorithm-intro" : ""}">
@@ -884,14 +1088,13 @@ function renderizar_pantalla_algoritmo() {
 
       <div class="algo-grid">
         <div class="algorithm-graph">
-          <div class="section-kicker">VISTA DEL GRAFO</div>
+          <div class="section-kicker">GRAFO DIRIGIDO</div>
           <div class="graph-wrap">
-          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores })}
+          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores, componentes: contenido.paso.tipo === "componente" ? estado.componentes : null })}
           </div>
         </div>
         <div class="matrix-column">
-          <div class="matrix-heading"><span class="matrix-explainer">${explicacion}</span></div>
-          <div class="matrix-meta"><span>${estado.n} × ${estado.n}</span><span>Desliza para explorar la matriz</span></div>
+          <div class="matrix-meta"><span>${n} × ${n}</span><span>Fila: origen · columna: destino</span></div>
           ${html_matriz_cuerpo}
         </div>
       </div>
@@ -907,41 +1110,56 @@ function renderizar_pantalla_algoritmo() {
 function renderizar_pantalla_resultado() {
     const n = estado.n;
     const mapa_colores = crear_mapa_colores_componentes(estado.componentes, n);
-    let cards = estado.componentes
-        .map((comp, ci) => {
-            const color = obtener_color_componente(ci);
-            const chips = comp
+    const cantidad_aristas = estado.matriz
+        .flat()
+        .reduce((total, valor) => total + valor, 0);
+    const tarjetas_componentes = estado.componentes
+        .map((componente, indice_componente) => {
+            const color = obtener_color_componente(indice_componente);
+            const integrantes = componente
                 .map(
-                    (idx) =>
-                        `<span class="member-chip">${estado.nombres[idx]}</span>`,
+                    (indice_nodo) =>
+                        `<span class="member-chip">${estado.nombres[indice_nodo]}</span>`,
                 )
                 .join("");
-            const subtitle = `${comp.length} ${comp.length === 1 ? "persona" : "personas"}`;
-            return `<div class="community-card" style="border-left-color:${color};">
-      <h3><span class="swatch" style="background:${color};"></span>Comunidad ${ci + 1}</h3>
-      <p>${subtitle}</p>
-      <div class="member-chips">${chips}</div>
-    </div>`;
+            const cantidad_nodos = componente.length;
+            const etiqueta_nodos =
+                cantidad_nodos === 1 ? "nodo" : "nodos";
+
+            return `
+                <article class="community-card" style="border-left-color: ${color}">
+                    <h3>
+                        <span class="swatch" style="background: ${color}"></span>
+                        Componente ${indice_componente + 1}
+                    </h3>
+                    <p>${cantidad_nodos} ${etiqueta_nodos}</p>
+                    <div class="member-chips">${integrantes}</div>
+                </article>`;
         })
         .join("");
+    const etiqueta_componentes =
+        estado.componentes.length === 1
+            ? "componente fuertemente conexa"
+            : "componentes fuertemente conexas";
 
     return `
   <section class="screen">
     <div class="screen-heading result-heading">
-      <div><span class="eyebrow"><span class="eyebrow-line"></span> LO QUE NOS UNE</span><h1 class="page-title">Tu red tiene <em>${estado.componentes.length} ${estado.componentes.length === 1 ? "grupo" : "grupos"}.</em></h1></div>
+      <div><span class="eyebrow"><span class="eyebrow-line"></span> RESULTADO DEL ANÁLISIS</span><h1 class="page-title">Se encontraron <em>${estado.componentes.length}</em> ${etiqueta_componentes}.</h1></div>
       <button class="icon-button" data-action="restart" aria-label="Volver al inicio">↶</button>
     </div>
     <div class="panel workspace-panel">
       <div class="result-summary">
         <span class="big-n">${estado.componentes.length}</span>
-        <span class="big-label">comunidades<br /><b>${n} personas · ${estado.matriz.flat().reduce((total, valor) => total + valor, 0)} conexiones dirigidas</b></span>
+        <span class="big-label">${etiqueta_componentes}<br /><b>${n} nodos · ${cantidad_aristas} aristas dirigidas</b></span>
       </div>
+      <p class="scc-definition">Cada componente es un conjunto maximal de nodos cuyos integrantes pueden alcanzarse entre sí siguiendo la dirección de las aristas.</p>
 
       <div class="result-grid">
         <div class="graph-wrap">
           ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores, componentes: estado.componentes, organizar_componentes: true })}
         </div>
-        <div>${cards}</div>
+        <div>${tarjetas_componentes}</div>
       </div>
 
       <div class="btn-row">
@@ -1040,7 +1258,7 @@ function avanzar_paso_algoritmo() {
         return;
     }
 
-    if (estado.paso_algoritmo < ULTIMO_PASO_ALGORITMO) {
+    if (estado.paso_algoritmo < estado.pasos.length - 1) {
         estado.paso_algoritmo++;
         actualizar_pantalla_algoritmo();
         return;
@@ -1124,7 +1342,7 @@ document.addEventListener("input", (evento) => {
     const cantidad = Number(evento.target.value);
     if (
         !Number.isInteger(cantidad) ||
-        cantidad < 4 ||
+        cantidad < CANTIDAD_MINIMA_USUARIOS ||
         cantidad > CANTIDAD_MAXIMA_USUARIOS
     ) {
         return;

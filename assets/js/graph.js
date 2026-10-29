@@ -408,7 +408,7 @@
                     orden,
                     orden_columnas,
                 ),
-                titulo: `Ordenar columna ${cantidad_ordenada} de ${cantidad}`,
+                titulo: `Colocar columna ${orden[cantidad_ordenada - 1] + 1} según el orden de las filas`,
             });
         }
 

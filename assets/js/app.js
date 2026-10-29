@@ -45,6 +45,7 @@ function crear_estado_inicial() {
         paso_algoritmo: -1,
         componentes: null,
         pasos: [],
+        paso_analisis_original: 0,
     };
 }
 
@@ -1161,6 +1162,212 @@ function renderizar_pantalla_algoritmo() {
   </section>`;
 }
 
+function renderizar_tarjetas_componentes(componentes = estado.componentes) {
+    return componentes
+        .map((componente, indice_componente) => {
+            const color = obtener_color_componente(indice_componente);
+            const integrantes = componente
+                .map(
+                    (indice_nodo) =>
+                        `<span class="member-chip">${estado.nombres[indice_nodo]}</span>`,
+                )
+                .join("");
+            const etiqueta_nodos =
+                componente.length === 1 ? "nodo" : "nodos";
+
+            return `
+                <article class="community-card" style="border-left-color: ${color}">
+                    <h3>
+                        <span class="swatch" style="background: ${color}"></span>
+                        Componente ${indice_componente + 1}
+                    </h3>
+                    <p>${componente.length} ${etiqueta_nodos}</p>
+                    <div class="member-chips">${integrantes}</div>
+                </article>`;
+        })
+        .join("");
+}
+
+function obtener_etapas_analisis_original() {
+    const indices = Array.from({ length: estado.n }, (_, indice) => indice);
+    const paso_caminos = estado.pasos.find(
+        (paso) => paso.tipo === "caminos-completos",
+    );
+    let paso_ordenado = null;
+    let paso_componentes = null;
+
+    estado.pasos.forEach((paso) => {
+        if (paso.tipo === "orden-columna") paso_ordenado = paso;
+        if (paso.tipo === "componente") paso_componentes = paso;
+    });
+
+    if (!paso_caminos || !paso_ordenado || !paso_componentes) {
+        throw new Error(
+            "No se encontraron todos los pasos necesarios para mostrar el análisis del grafo.",
+        );
+    }
+
+    return [
+        {
+            titulo: "Matriz de adyacencia",
+            descripcion:
+                "Representa las aristas originales: fila es el origen y columna el destino.",
+            matriz: estado.matriz,
+            orden_filas: indices,
+            orden_columnas: indices,
+        },
+        {
+            titulo: "Matriz de caminos",
+            descripcion:
+                "Muestra qué nodos son alcanzables desde cada origen, incluyendo la diagonal.",
+            matriz: paso_caminos.matriz,
+            orden_filas: indices,
+            orden_columnas: indices,
+        },
+        {
+            titulo: "Filas y columnas ordenadas",
+            descripcion:
+                "Las filas se ordenan por cantidad de unos y las columnas siguen ese mismo orden.",
+            matriz: paso_ordenado.matriz,
+            orden_filas: paso_ordenado.orden_filas,
+            orden_columnas: paso_ordenado.orden_columnas,
+        },
+        {
+            titulo: "Componentes fuertemente conexas",
+            descripcion:
+                "Los bloques diagonales de unos identifican los grupos cuyos nodos se alcanzan mutuamente.",
+            matriz: paso_componentes.matriz,
+            orden_filas: paso_componentes.orden_filas,
+            orden_columnas: paso_componentes.orden_columnas,
+            componentes: estado.componentes,
+        },
+    ];
+}
+
+function renderizar_pestanas_analisis_original(indice_activo) {
+    const etapas = obtener_etapas_analisis_original();
+
+    return etapas
+        .map(
+            (etapa, indice) => `
+                <button
+                    class="original-analysis-tab ${indice === indice_activo ? "active" : ""}"
+                    id="original-analysis-tab-${indice}"
+                    type="button"
+                    role="tab"
+                    aria-selected="${indice === indice_activo}"
+                    tabindex="${indice === indice_activo ? "0" : "-1"}"
+                    aria-controls="original-analysis-stage"
+                    data-action="select-original-step"
+                    data-step="${indice}"
+                >
+                    <span>${indice + 1}</span>
+                    ${etapa.titulo}
+                </button>`,
+        )
+        .join("");
+}
+
+function renderizar_etapa_analisis_original(indice) {
+    const etapas = obtener_etapas_analisis_original();
+    const etapa = etapas[indice];
+    if (!etapa) {
+        throw new RangeError("La etapa del análisis seleccionado no existe.");
+    }
+
+    const etiquetas = Array.from(
+        { length: estado.n },
+        (_, indice_nodo) => String(indice_nodo + 1),
+    );
+    const componente_por_nodo = new Array(estado.n).fill(null);
+    if (etapa.componentes) {
+        etapa.componentes.forEach((componente, indice_componente) => {
+            componente.forEach((nodo) => {
+                componente_por_nodo[nodo] = indice_componente;
+            });
+        });
+    }
+
+    const etiquetas_filas = etapa.orden_filas.map(
+        (nodo) => etiquetas[nodo],
+    );
+    const etiquetas_columnas = etapa.orden_columnas.map(
+        (nodo) => etiquetas[nodo],
+    );
+    const opciones_matriz = etapa.componentes
+        ? {
+              bloque_de_filas: etapa.orden_filas.map(
+                  (nodo) => componente_por_nodo[nodo],
+              ),
+              bloque_de_columnas: etapa.orden_columnas.map(
+                  (nodo) => componente_por_nodo[nodo],
+              ),
+          }
+        : {};
+    const contenido_componentes = etapa.componentes
+        ? `<div class="original-analysis-components">${renderizar_tarjetas_componentes(etapa.componentes)}</div>`
+        : "";
+
+    return `
+        <div
+            class="original-analysis-stage-content"
+            role="tabpanel"
+            id="original-analysis-stage"
+            aria-labelledby="original-analysis-tab-${indice}"
+        >
+            <div class="original-analysis-copy">
+                <span>ETAPA ${indice + 1} DE ${etapas.length}</span>
+                <h3>${etapa.titulo}</h3>
+                <p>${etapa.descripcion}</p>
+            </div>
+            <div class="original-analysis-matrix">
+                <div class="matrix-meta">
+                    <span>${estado.n} × ${estado.n}</span>
+                    <span>Fila: origen · columna: destino</span>
+                </div>
+                ${renderizar_tabla_matriz(
+                    etapa.matriz,
+                    etiquetas_filas,
+                    etiquetas_columnas,
+                    opciones_matriz,
+                )}
+            </div>
+            ${contenido_componentes}
+        </div>`;
+}
+
+function actualizar_etapa_analisis_original(indice) {
+    const etapas = obtener_etapas_analisis_original();
+    if (!Number.isInteger(indice) || indice < 0 || indice >= etapas.length) {
+        throw new RangeError("La etapa del análisis seleccionado no existe.");
+    }
+
+    estado.paso_analisis_original = indice;
+    document.querySelectorAll(".original-analysis-tab").forEach((pestana) => {
+        const esta_activa = Number(pestana.dataset.step) === indice;
+        pestana.classList.toggle("active", esta_activa);
+        pestana.setAttribute("aria-selected", String(esta_activa));
+        pestana.tabIndex = esta_activa ? 0 : -1;
+    });
+
+    const contenido = document.querySelector(".original-analysis-content");
+    const contador = document.querySelector(
+        "[data-original-step-counter]",
+    );
+    const boton_anterior = document.querySelector(
+        '[data-action="move-original-step"][data-direction="-1"]',
+    );
+    const boton_siguiente = document.querySelector(
+        '[data-action="move-original-step"][data-direction="1"]',
+    );
+    if (!contenido || !boton_anterior || !boton_siguiente) return;
+
+    contenido.innerHTML = renderizar_etapa_analisis_original(indice);
+    if (contador) contador.textContent = `${indice + 1} / ${etapas.length}`;
+    boton_anterior.disabled = indice === 0;
+    boton_siguiente.disabled = indice === etapas.length - 1;
+}
+
 /* Resultado de las comunidades */
 function renderizar_pantalla_resultado() {
     const n = estado.n;
@@ -1171,30 +1378,8 @@ function renderizar_pantalla_resultado() {
     const cantidad_aristas = estado.matriz
         .flat()
         .reduce((total, valor) => total + valor, 0);
-    const tarjetas_componentes = estado.componentes
-        .map((componente, indice_componente) => {
-            const color = obtener_color_componente(indice_componente);
-            const integrantes = componente
-                .map(
-                    (indice_nodo) =>
-                        `<span class="member-chip">${estado.nombres[indice_nodo]}</span>`,
-                )
-                .join("");
-            const cantidad_nodos = componente.length;
-            const etiqueta_nodos =
-                cantidad_nodos === 1 ? "nodo" : "nodos";
-
-            return `
-                <article class="community-card" style="border-left-color: ${color}">
-                    <h3>
-                        <span class="swatch" style="background: ${color}"></span>
-                        Componente ${indice_componente + 1}
-                    </h3>
-                    <p>${cantidad_nodos} ${etiqueta_nodos}</p>
-                    <div class="member-chips">${integrantes}</div>
-                </article>`;
-        })
-        .join("");
+    const tarjetas_componentes =
+        renderizar_tarjetas_componentes(estado.componentes);
     const etiqueta_componentes =
         estado.componentes.length === 1
             ? "componente fuertemente conexa"
@@ -1244,14 +1429,52 @@ function renderizar_pantalla_resultado() {
             <span class="section-kicker">RED COMPLETA</span>
             <h2>Grafo original</h2>
           </div>
-          <span>Con todas sus conexiones dirigidas</span>
+          <span>Explora la red y sigue cómo se obtiene el resultado</span>
         </div>
-        <div class="graph-wrap">
-          ${renderizar_grafo({
-              n,
-              matriz: estado.matriz,
-              nombres: estado.nombres,
-          })}
+        <div class="result-original-layout">
+          <div class="graph-wrap">
+            ${renderizar_grafo({
+                n,
+                matriz: estado.matriz,
+                nombres: estado.nombres,
+            })}
+          </div>
+          <section class="original-analysis" aria-label="Proceso de análisis">
+            <div class="original-analysis-heading">
+              <span class="section-kicker">PROCESO DE ANÁLISIS</span>
+              <div class="original-analysis-tabs" role="tablist" aria-label="Etapas del análisis">
+                ${renderizar_pestanas_analisis_original(
+                    estado.paso_analisis_original,
+                )}
+              </div>
+            </div>
+            <div class="original-analysis-content" aria-live="polite">
+              ${renderizar_etapa_analisis_original(
+                  estado.paso_analisis_original,
+              )}
+            </div>
+            <div class="original-analysis-navigation">
+              <button
+                class="btn btn-ghost"
+                type="button"
+                data-action="move-original-step"
+                data-direction="-1"
+                ${estado.paso_analisis_original === 0 ? "disabled" : ""}
+              >
+                ← Anterior
+              </button>
+              <span data-original-step-counter>${estado.paso_analisis_original + 1} / 4</span>
+              <button
+                class="btn btn-ghost"
+                type="button"
+                data-action="move-original-step"
+                data-direction="1"
+                ${estado.paso_analisis_original === 3 ? "disabled" : ""}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -1425,6 +1648,14 @@ const acciones_interfaz = {
             );
         }
     },
+    "select-original-step": (boton) => {
+        actualizar_etapa_analisis_original(Number(boton.dataset.step));
+    },
+    "move-original-step": (boton) => {
+        actualizar_etapa_analisis_original(
+            estado.paso_analisis_original + Number(boton.dataset.direction),
+        );
+    },
     "algo-prev": () => {
         if (estado.paso_algoritmo < 0) return;
         estado.paso_algoritmo =
@@ -1451,6 +1682,39 @@ document.addEventListener("click", (evento) => {
     }
 
     acciones_interfaz[boton.dataset.action](boton);
+});
+
+document.addEventListener("keydown", (evento) => {
+    if (
+        !(evento.target instanceof Element) ||
+        !evento.target.matches(".original-analysis-tab")
+    ) {
+        return;
+    }
+
+    const cantidad_etapas = obtener_etapas_analisis_original().length;
+    let siguiente_indice = estado.paso_analisis_original;
+    if (evento.key === "ArrowRight") {
+        siguiente_indice =
+            (siguiente_indice + 1) % cantidad_etapas;
+    } else if (evento.key === "ArrowLeft") {
+        siguiente_indice =
+            (siguiente_indice - 1 + cantidad_etapas) % cantidad_etapas;
+    } else if (evento.key === "Home") {
+        siguiente_indice = 0;
+    } else if (evento.key === "End") {
+        siguiente_indice = cantidad_etapas - 1;
+    } else {
+        return;
+    }
+
+    evento.preventDefault();
+    actualizar_etapa_analisis_original(siguiente_indice);
+    document
+        .querySelector(
+            `[data-action="select-original-step"][data-step="${siguiente_indice}"]`,
+        )
+        ?.focus();
 });
 
 function obtener_instancia_grafo_manual() {

@@ -14,7 +14,8 @@ filas se acomodan por cantidad de unos de mayor a menor; en caso de empate,
 se prioriza la fila cuyo primer 1 esté más cerca de la primera columna. Si aún
 hay empate, se comparan los patrones de las filas para mantener juntas las
 filas iguales de una componente. Después, las columnas se acomodan siguiendo
-el orden de las filas, y los bloques diagonales de unos muestran los grupos.
+exactamente el mismo orden de las filas; no se ordenan por su propio conteo de
+unos. Los bloques diagonales de unos muestran los grupos.
 
 En las visualizaciones, una pareja de aristas opuestas se dibuja como una
 sola conexión con flechas en ambos extremos. Las conexiones entre componentes
@@ -24,7 +25,8 @@ separado.
 Las redes aleatorias garantizan que cada vértice tenga al menos una arista
 entrante o saliente. En el modo manual no se puede iniciar el análisis si
 algún vértice está aislado. En los resultados, un panel desplegable permite
-consultar el grafo original completo debajo de las componentes.
+consultar el grafo original completo junto a una vista por etapas: matriz de
+adyacencia, matriz de caminos, matriz ordenada y componentes detectadas.
 
 ## Estructura
 

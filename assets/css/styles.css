@@ -2061,7 +2061,7 @@ table.matrix td.matrix-edge-active {
 }
 
 .result-original-box.is-open {
-    max-height: 760px;
+    max-height: 2600px;
     margin-top: 18px;
     padding: 18px;
     border-color: #eeebe4;
@@ -2091,6 +2091,161 @@ table.matrix td.matrix-edge-active {
 
 .result-original-box .network-frame {
     height: clamp(320px, 52vh, 500px);
+}
+
+.result-original-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 18px;
+}
+
+.result-original-layout > .graph-wrap {
+    min-width: 0;
+}
+
+.original-analysis {
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid #eeebe4;
+    border-radius: 16px;
+    background: #fffefa;
+}
+
+.original-analysis-heading {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 13px;
+}
+
+.original-analysis-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.original-analysis-tab {
+    display: grid;
+    min-width: 0;
+    justify-items: center;
+    gap: 5px;
+    padding: 8px 4px;
+    border: 1px solid #eeebe4;
+    border-radius: 9px;
+    background: #fbfaf7;
+    color: #77746c;
+    font: inherit;
+    font-size: 9px;
+    line-height: 1.25;
+    text-align: center;
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.original-analysis-tab > span {
+    display: grid;
+    width: 19px;
+    height: 19px;
+    place-items: center;
+    border-radius: 50%;
+    background: #eeebe4;
+    color: #77746c;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.original-analysis-tab.active {
+    border-color: #8ac8d0;
+    background: #eaf6f7;
+    color: #176f7b;
+    font-weight: 700;
+}
+
+.original-analysis-tab.active > span {
+    background: #26889a;
+    color: white;
+}
+
+.original-analysis-tab:focus-visible {
+    outline: 2px solid #26889a;
+    outline-offset: 2px;
+}
+
+.original-analysis-stage-content {
+    display: grid;
+    gap: 12px;
+}
+
+.original-analysis-copy > span {
+    color: #99968c;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.original-analysis-copy h3 {
+    margin: 3px 0 4px;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.original-analysis-copy p {
+    margin: 0;
+    color: #77746c;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.original-analysis-matrix {
+    min-width: 0;
+}
+
+.original-analysis-matrix .matrix-meta {
+    margin: 0 0 7px;
+}
+
+.original-analysis-matrix .matrix-scroll {
+    max-height: min(58vh, 470px);
+}
+
+.original-analysis-components {
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 3px;
+}
+
+.original-analysis-components .community-card:last-child {
+    margin-bottom: 0;
+}
+
+.original-analysis-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #efebe4;
+}
+
+.original-analysis-navigation .btn {
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 9px;
+}
+
+.original-analysis-navigation > span {
+    color: #99968c;
+    font-family: var(--mono);
+    font-size: 9px;
+}
+
+.original-analysis-navigation .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .community-card {
@@ -2180,7 +2335,8 @@ table.matrix td.matrix-edge-active {
 
     .build-grid,
     .algo-grid,
-    .result-grid {
+    .result-grid,
+    .result-original-layout {
         grid-template-columns: 1fr;
     }
 
@@ -2380,6 +2536,19 @@ table.matrix td.matrix-edge-active {
 
     .matrix-meta {
         font-size: 8px;
+    }
+
+    .original-analysis {
+        padding: 11px;
+    }
+
+    .original-analysis-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .result-original-heading {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .algo-nav .btn {

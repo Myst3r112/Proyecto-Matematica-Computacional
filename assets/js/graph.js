@@ -155,6 +155,23 @@
             }
         }
 
+        for (let nodo = 0; nodo < cantidad; nodo++) {
+            const tiene_arista_entrante = matriz.some(
+                (fila) => fila[nodo] === 1,
+            );
+            const tiene_arista_saliente = matriz[nodo].some(
+                (valor) => valor === 1,
+            );
+            if (tiene_arista_entrante || tiene_arista_saliente) continue;
+
+            const otro_nodo = (nodo + 1) % cantidad;
+            if (Math.random() < 0.5) {
+                matriz[nodo][otro_nodo] = 1;
+            } else {
+                matriz[otro_nodo][nodo] = 1;
+            }
+        }
+
         return matriz;
     }
 

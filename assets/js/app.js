@@ -52,6 +52,21 @@ function ejecutar_algoritmo() {
     Object.assign(estado, calcular_datos_algoritmo(estado.matriz));
 }
 
+function obtener_nodos_aislados(matriz) {
+    return matriz
+        .map((fila, nodo) => {
+            const tiene_arista_saliente = fila.some((valor) => valor === 1);
+            const tiene_arista_entrante = matriz.some(
+                (otra_fila) => otra_fila[nodo] === 1,
+            );
+
+            return tiene_arista_entrante || tiene_arista_saliente
+                ? null
+                : nodo;
+        })
+        .filter((nodo) => nodo !== null);
+}
+
 /* Prepara los datos para mostrar la red interactiva */
 function renderizar_grafo(opciones) {
     const indice = configuraciones_grafos.push(opciones) - 1;
@@ -177,12 +192,24 @@ function crear_posiciones_componentes(instancia, componentes) {
 
 function crear_opciones_distribucion(posiciones) {
     return {
-        name: posiciones ? "preset" : "random",
+        name: posiciones ? "preset" : "cose",
         animate: Boolean(posiciones),
         animationDuration: posiciones ? 700 : 0,
         animationEasing: "ease-in-out",
         fit: false,
-        padding: 42,
+        padding: 30,
+        nodeOverlap: posiciones ? 0 : 24,
+        nodeRepulsion: () => 1200,
+        idealEdgeLength: () => 45,
+        edgeElasticity: () => 100,
+        nestingFactor: 1.2,
+        gravity: 1.3,
+        gravityRange: 3.8,
+        componentSpacing: 18,
+        numIter: 500,
+        initialTemp: 180,
+        coolingFactor: 0.96,
+        minTemp: 1,
         positions: posiciones
             ? (nodo) => posiciones.get(nodo.id())
             : undefined,
@@ -647,6 +674,8 @@ function renderizar_pantalla_construccion() {
     const n = estado.n;
     const conexiones = obtener_conexiones_manuales();
     const cantidad_conexiones = conexiones.cantidad;
+    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
+    const mensaje_aislados = obtener_mensaje_nodos_aislados(nodos_aislados);
 
     return `
         <section class="screen">
@@ -680,12 +709,23 @@ function renderizar_pantalla_construccion() {
                         ${conexiones.html}
                     </aside>
                 </div>
+                <p class="validation-message" data-isolated-message role="alert" ${nodos_aislados.length ? "" : "hidden"}>${mensaje_aislados}</p>
                 <div class="workspace-actions">
                     <button class="btn btn-ghost" data-action="restart">Volver</button>
-                    <button class="btn btn-primary" data-action="confirm-manual">Encontrar comunidades <span class="button-arrow">↗</span></button>
+                    <button class="btn btn-primary" data-action="confirm-manual" ${nodos_aislados.length ? "disabled" : ""}>Encontrar comunidades <span class="button-arrow">↗</span></button>
                 </div>
             </div>
         </section>`;
+}
+
+function obtener_mensaje_nodos_aislados(nodos_aislados) {
+    if (nodos_aislados.length === 0) return "";
+
+    const nombres = nodos_aislados
+        .map((nodo) => estado.nombres[nodo])
+        .join(", ");
+    const etiqueta = nodos_aislados.length === 1 ? "no tiene" : "no tienen";
+    return `${nombres} ${etiqueta} conexiones. Conecta cada nodo para continuar.`;
 }
 
 function obtener_conexiones_manuales() {
@@ -733,6 +773,21 @@ function actualizar_interfaz_construccion(instancia) {
     indicacion.innerHTML = obtener_texto_indicacion_manual();
     resumen.innerHTML = `    <span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
     panel_conexiones.innerHTML = conexiones.html;
+    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
+    const mensaje_aislados = document.querySelector(
+        "[data-isolated-message]",
+    );
+    const boton_confirmar = document.querySelector(
+        '[data-action="confirm-manual"]',
+    );
+    if (mensaje_aislados) {
+        mensaje_aislados.textContent =
+            obtener_mensaje_nodos_aislados(nodos_aislados);
+        mensaje_aislados.hidden = nodos_aislados.length === 0;
+    }
+    if (boton_confirmar) {
+        boton_confirmar.disabled = nodos_aislados.length > 0;
+    }
     if (!instancia) return;
 
     instancia.nodes().forEach((nodo) => {
@@ -1109,7 +1164,10 @@ function renderizar_pantalla_algoritmo() {
 /* Resultado de las comunidades */
 function renderizar_pantalla_resultado() {
     const n = estado.n;
-    const mapa_colores = crear_mapa_colores_componentes(estado.componentes, n);
+    const mapa_colores = crear_mapa_colores_componentes(
+        estado.componentes,
+        n,
+    );
     const cantidad_aristas = estado.matriz
         .flat()
         .reduce((total, valor) => total + valor, 0);
@@ -1155,12 +1213,47 @@ function renderizar_pantalla_resultado() {
       </div>
       <p class="scc-definition">Cada componente es un conjunto maximal de nodos cuyos integrantes pueden alcanzarse entre sí siguiendo la dirección de las aristas.</p>
 
+      <div class="result-view-actions">
+        <button class="btn btn-ghost" data-action="toggle-result-graph" aria-expanded="false" aria-controls="original-graph-box">
+          Ver grafo original
+        </button>
+      </div>
       <div class="result-grid">
         <div class="graph-wrap">
-          ${renderizar_grafo({ n, matriz: estado.matriz, nombres: estado.nombres, mapa_colores, componentes: estado.componentes, organizar_componentes: true })}
+          ${renderizar_grafo({
+              n,
+              matriz: estado.matriz,
+              nombres: estado.nombres,
+              mapa_colores,
+              componentes: estado.componentes,
+              organizar_componentes: true,
+          })}
         </div>
         <div>${tarjetas_componentes}</div>
       </div>
+
+      <section
+        class="result-original-box"
+        id="original-graph-box"
+        aria-label="Grafo original completo"
+        aria-hidden="true"
+        inert
+      >
+        <div class="result-original-heading">
+          <div>
+            <span class="section-kicker">RED COMPLETA</span>
+            <h2>Grafo original</h2>
+          </div>
+          <span>Con todas sus conexiones dirigidas</span>
+        </div>
+        <div class="graph-wrap">
+          ${renderizar_grafo({
+              n,
+              matriz: estado.matriz,
+              nombres: estado.nombres,
+          })}
+        </div>
+      </section>
 
       <div class="btn-row">
         <button class="btn btn-primary" data-action="restart">Crear otra red <span class="button-arrow">↗</span></button>
@@ -1245,6 +1338,19 @@ function quitar_conexion(boton) {
 }
 
 function confirmar_red_manual() {
+    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
+    if (nodos_aislados.length > 0) {
+        const mensaje_aislados = document.querySelector(
+            "[data-isolated-message]",
+        );
+        if (mensaje_aislados) {
+            mensaje_aislados.textContent =
+                obtener_mensaje_nodos_aislados(nodos_aislados);
+            mensaje_aislados.hidden = false;
+        }
+        return;
+    }
+
     ejecutar_algoritmo();
     estado.paso_algoritmo = -1;
     estado.pantalla = "algorithm";
@@ -1281,6 +1387,44 @@ const acciones_interfaz = {
         actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
     },
     "confirm-manual": confirmar_red_manual,
+    "toggle-result-graph": (boton) => {
+        const caja = document.getElementById("original-graph-box");
+        if (!caja) return;
+
+        const esta_abierta = boton.getAttribute("aria-expanded") === "true";
+        boton.setAttribute("aria-expanded", String(!esta_abierta));
+        boton.textContent = esta_abierta
+            ? "Ver grafo original"
+            : "Ocultar grafo original";
+        caja.classList.toggle("is-open", !esta_abierta);
+        caja.setAttribute("aria-hidden", String(esta_abierta));
+        caja.inert = esta_abierta;
+
+        if (!esta_abierta) {
+            const movimiento_reducido = window.matchMedia(
+                "(prefers-reduced-motion: reduce)",
+            ).matches;
+            window.setTimeout(
+                () => {
+                    if (!caja.classList.contains("is-open")) return;
+                    caja.scrollIntoView({
+                        behavior: movimiento_reducido ? "auto" : "smooth",
+                        block: "nearest",
+                    });
+                    const lienzo = caja.querySelector(".network-canvas");
+                    if (!lienzo) return;
+                    const instancia =
+                        instancias_grafos[
+                            Number(lienzo.dataset.networkIndex)
+                        ];
+                    if (!instancia) return;
+                    instancia.resize();
+                    instancia.fit(instancia.elements(), 42);
+                },
+                movimiento_reducido ? 0 : 360,
+            );
+        }
+    },
     "algo-prev": () => {
         if (estado.paso_algoritmo < 0) return;
         estado.paso_algoritmo =

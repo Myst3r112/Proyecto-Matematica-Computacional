@@ -1606,6 +1606,17 @@ svg.graph g[data-action="pick-node"] circle {
     min-width: 205px;
 }
 
+.validation-message {
+    margin: 14px 0 0;
+    color: #a64e3e;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.validation-message[hidden] {
+    display: none;
+}
+
 .steps-nav {
     gap: 0;
     margin: 1px 0 23px;
@@ -2021,6 +2032,65 @@ table.matrix td.matrix-edge-active {
     color: #77766e;
     font-size: 12px;
     line-height: 1.6;
+}
+
+.result-view-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: -8px 0 14px;
+}
+
+.result-original-box {
+    max-height: 0;
+    overflow: hidden;
+    margin-top: 0;
+    padding: 0 18px;
+    border: 1px solid transparent;
+    border-radius: 17px;
+    background: #fbfaf7;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition:
+        max-height 0.55s cubic-bezier(0.2, 0.7, 0.2, 1),
+        margin 0.4s ease,
+        padding 0.4s ease,
+        border-color 0.3s ease,
+        opacity 0.3s ease,
+        transform 0.4s ease;
+}
+
+.result-original-box.is-open {
+    max-height: 760px;
+    margin-top: 18px;
+    padding: 18px;
+    border-color: #eeebe4;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.result-original-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.result-original-heading h2 {
+    margin: 3px 0 0;
+    color: var(--text);
+    font-size: 15px;
+}
+
+.result-original-heading > span {
+    color: #99968c;
+    font-size: 10px;
+}
+
+.result-original-box .network-frame {
+    height: clamp(320px, 52vh, 500px);
 }
 
 .community-card {

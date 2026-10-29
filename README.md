@@ -21,6 +21,11 @@ sola conexión con flechas en ambos extremos. Las conexiones entre componentes
 se ocultan al presentar los grupos, para que cada componente se aprecie por
 separado.
 
+Las redes aleatorias garantizan que cada vértice tenga al menos una arista
+entrante o saliente. En el modo manual no se puede iniciar el análisis si
+algún vértice está aislado. En los resultados, un panel desplegable permite
+consultar el grafo original completo debajo de las componentes.
+
 ## Estructura
 
 ```text

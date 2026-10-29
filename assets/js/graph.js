@@ -264,8 +264,10 @@
             if (!registrar_pasos) return;
 
             pasos.push({
-                matriz: matriz_caminos.map((fila) => [...fila]),
                 ...datos,
+                matriz:
+                    datos.matriz ??
+                    matriz_caminos.map((fila) => [...fila]),
             });
         }
 
@@ -326,10 +328,13 @@
                         fase: "alcance",
                         tipo: "camino",
                         nodo_actual: actual,
-                        arista_actual: [actual, destino],
                         celda_actual: [origen, destino],
                         titulo: `Agregar camino ${origen + 1} → ${destino + 1}`,
                         camino: camino.map((nodo) => nodo + 1),
+                        aristas_camino: camino.slice(1).map((nodo, indice) => [
+                            camino[indice],
+                            nodo,
+                        ]),
                     });
                 });
             }
@@ -357,72 +362,72 @@
                     ...componente_b.map((nodo) => posicion_nodo.get(nodo)),
                 ),
         );
-        const orden_original = Array.from(
-            { length: cantidad },
-            (_, indice) => indice,
-        );
-
-        for (
-            let cantidad_ordenada = 1;
-            cantidad_ordenada <= cantidad;
-            cantidad_ordenada++
-        ) {
-            const orden_filas = crear_orden_parcial(
-                orden,
-                cantidad_ordenada,
-            );
-
-            registrar_paso({
-                fase: "orden",
-                tipo: "orden-fila",
-                cantidad_ordenada,
-                orden_filas,
-                orden_columnas: orden_original,
-                matriz: reordenar_matriz(
-                    matriz_caminos,
-                    orden_filas,
-                    orden_original,
-                ),
-                titulo: `Ordenar fila ${cantidad_ordenada} de ${cantidad}`,
-            });
-        }
-
-        for (
-            let cantidad_ordenada = 1;
-            cantidad_ordenada <= cantidad;
-            cantidad_ordenada++
-        ) {
-            const orden_columnas = crear_orden_parcial(
-                orden,
-                cantidad_ordenada,
-            );
-
-            registrar_paso({
-                fase: "orden",
-                tipo: "orden-columna",
-                cantidad_ordenada,
-                orden_filas: orden,
-                orden_columnas,
-                matriz: reordenar_matriz(
-                    matriz_caminos,
-                    orden,
-                    orden_columnas,
-                ),
-                titulo: `Colocar columna ${orden[cantidad_ordenada - 1] + 1} según el orden de las filas`,
-            });
-        }
-
-        const matriz_ordenada = reordenar_matriz(
-            matriz_caminos,
-            orden,
-            orden,
-        );
         if (registrar_pasos) {
+            const orden_original = Array.from(
+                { length: cantidad },
+                (_, indice) => indice,
+            );
+
+            for (
+                let cantidad_ordenada = 1;
+                cantidad_ordenada <= cantidad;
+                cantidad_ordenada++
+            ) {
+                const orden_filas = crear_orden_parcial(
+                    orden,
+                    cantidad_ordenada,
+                );
+
+                registrar_paso({
+                    fase: "orden",
+                    tipo: "orden-fila",
+                    cantidad_ordenada,
+                    orden_filas,
+                    orden_columnas: orden_original,
+                    matriz: reordenar_matriz(
+                        matriz_caminos,
+                        orden_filas,
+                        orden_original,
+                    ),
+                    titulo: `Ordenar fila ${cantidad_ordenada} de ${cantidad}`,
+                });
+            }
+
+            for (
+                let cantidad_ordenada = 1;
+                cantidad_ordenada <= cantidad;
+                cantidad_ordenada++
+            ) {
+                const orden_columnas = crear_orden_parcial(
+                    orden,
+                    cantidad_ordenada,
+                );
+
+                registrar_paso({
+                    fase: "orden",
+                    tipo: "orden-columna",
+                    cantidad_ordenada,
+                    orden_filas: orden,
+                    orden_columnas,
+                    matriz: reordenar_matriz(
+                        matriz_caminos,
+                        orden,
+                        orden_columnas,
+                    ),
+                    titulo: `Colocar columna ${orden[cantidad_ordenada - 1] + 1} según el orden de las filas`,
+                });
+            }
+
+            const matriz_ordenada = reordenar_matriz(
+                matriz_caminos,
+                orden,
+                orden,
+            );
             componentes.forEach((componente, indice_componente) => {
-                pasos.push({
+                registrar_paso({
                     fase: "grupos",
                     tipo: "componente",
-                    matriz: matriz_ordenada.map((fila) => [...fila]),
+                    matriz: matriz_ordenada,
                     orden_filas: orden,
                     orden_columnas: orden,
                     componentes_mostradas: indice_componente + 1,
@@ -433,7 +438,6 @@
 
         return {
             componentes,
-            matriz_caminos,
             pasos,
         };
     }

@@ -28,7 +28,7 @@ algún vértice está aislado. En los resultados, un panel desplegable permite
 consultar el grafo original completo junto a una vista por etapas: matriz de
 adyacencia, matriz de caminos, matriz ordenada y componentes detectadas.
 
-## Estructura
+## Estructura del Directorio
 
 ```text
 .
@@ -41,9 +41,6 @@ adyacencia, matriz de caminos, matriz ordenada y componentes detectadas.
 ├── docs/Proyectos.pdf
 └── index.html
 ```
-
-`index.html` se mantiene en la raíz para que GitHub Pages pueda servir la
-aplicación directamente. Las dependencias visuales se cargan desde CDN.
 
 ## Página web
 

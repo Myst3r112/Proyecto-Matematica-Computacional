@@ -32,6 +32,11 @@ const fases_algoritmo = [
     { id: "orden", nombre: "Orden" },
     { id: "grupos", nombre: "Componentes" },
 ];
+const colores_camino = {
+    inicio: "#16803c",
+    intermedio: "#2563eb",
+    destino: "#e45118",
+};
 
 function crear_estado_inicial() {
     return {
@@ -384,37 +389,67 @@ function posicionar_grafos() {
                 {
                     selector: "node.analysis-path-node",
                     style: {
-                        "background-color": "#73c7d2",
-                        "border-color": "#145d67",
-                        "border-width": 3,
-                        width: tamano_nodo + 6,
-                        height: tamano_nodo + 6,
+                        "background-color": colores_camino.intermedio,
+                        "border-color": "#173b83",
+                        "border-width": 3.5,
+                        color: "#ffffff",
+                        width: tamano_nodo + 5,
+                        height: tamano_nodo + 5,
+                        "font-size": 11,
                         "z-index": 21,
                     },
                 },
                 {
                     selector: "node.analysis-path-start",
                     style: {
-                        "background-color": "#46a6a7",
-                        "border-color": "#145d67",
+                        "background-color": colores_camino.inicio,
+                        "border-color": "#0b4822",
+                        "border-width": 4,
+                        color: "#ffffff",
+                        width: tamano_nodo + 9,
+                        height: tamano_nodo + 9,
+                        "font-size": 11,
+                        "z-index": 23,
                     },
                 },
                 {
                     selector: "node.analysis-path-end",
                     style: {
-                        "background-color": "#f0a84a",
-                        "border-color": "#8f5714",
+                        "background-color": colores_camino.destino,
+                        "border-color": "#8b2f0d",
+                        "border-width": 4,
+                        color: "#ffffff",
+                        width: tamano_nodo + 9,
+                        height: tamano_nodo + 9,
+                        "font-size": 11,
+                        "z-index": 24,
                     },
                 },
                 {
                     selector: "edge.analysis-path-edge",
                     style: {
                         width: 4,
-                        "line-color": "#f0a84a",
-                        "target-arrow-color": "#f0a84a",
-                        "source-arrow-color": "#f0a84a",
+                        "line-color": colores_camino.destino,
+                        "target-arrow-color": colores_camino.destino,
+                        "source-arrow-color": colores_camino.destino,
                         opacity: 1,
                         "z-index": 20,
+                    },
+                },
+                {
+                    selector: "edge.analysis-path-start-edge",
+                    style: {
+                        "line-color": colores_camino.inicio,
+                        "target-arrow-color": colores_camino.inicio,
+                        "source-arrow-color": colores_camino.inicio,
+                    },
+                },
+                {
+                    selector: "edge.analysis-path-middle-edge",
+                    style: {
+                        "line-color": colores_camino.intermedio,
+                        "target-arrow-color": colores_camino.intermedio,
+                        "source-arrow-color": colores_camino.intermedio,
                     },
                 },
             ],
@@ -512,15 +547,18 @@ function renderizar_tabla_matriz(
     const tamano = "small";
     const encabezado_tabla = `<thead><tr><th></th>${etiquetas_columnas
         .map(
-            (etiqueta, indice) =>
-                `<th class="${[
+            (etiqueta, indice) => {
+                const rol_camino = opciones.roles_camino_columnas?.[indice];
+                return `<th class="${[
                     opciones.nodo_actual === indice ? "matrix-focus" : "",
                     opciones.columna_orden_actual === indice
                         ? "matrix-column-active"
                         : "",
+                    rol_camino ? `matrix-path-node-${rol_camino}` : "",
                 ]
                     .filter(Boolean)
-                    .join(" ")}" scope="col">${etiqueta}</th>`,
+                    .join(" ")}" scope="col">${etiqueta}</th>`;
+            },
         )
         .join("")}</tr></thead>`;
     let filas_html = "";
@@ -547,12 +585,24 @@ function renderizar_tabla_matriz(
             ) {
                 clases += " diag";
             }
-            if (
+            const rol_tramo_camino = opciones.celdas_camino?.get(
+                `${indice_fila}-${indice_columna}`,
+            );
+            const es_tramo_camino = Boolean(rol_tramo_camino);
+            const es_alcance_agregado =
                 opciones.celda_actual?.[0] === indice_fila &&
-                opciones.celda_actual?.[1] === indice_columna
-            ) {
+                opciones.celda_actual?.[1] === indice_columna;
+            if (es_alcance_agregado) {
                 clases += " matrix-path-active";
             }
+            if (es_tramo_camino) {
+                clases += ` matrix-route-active matrix-route-${rol_tramo_camino}`;
+            }
+            const descripcion_celda = es_alcance_agregado
+                ? `Relación de alcance agregada: ${etiquetas_filas[indice_fila]} a ${etiquetas_columnas[indice_columna]}`
+                : es_tramo_camino
+                  ? `Tramo del camino: ${etiquetas_filas[indice_fila]} a ${etiquetas_columnas[indice_columna]}`
+                  : "";
 
             let estilo_celda = "";
             if (opciones.bloque_de_filas && opciones.bloque_de_columnas) {
@@ -574,13 +624,16 @@ function renderizar_tabla_matriz(
                 }
             }
 
-            celdas_html += `<td class="${clases}" ${estilo_celda}>${valor}</td>`;
+            celdas_html += `<td class="${clases}" ${estilo_celda}${descripcion_celda ? ` aria-label="${valor}. ${descripcion_celda}" title="${descripcion_celda}"` : ""}>${valor}</td>`;
         }
 
         const clase_fila = [
             opciones.nodo_actual === indice_fila ? "matrix-focus" : "",
             opciones.fila_orden_actual === indice_fila
                 ? "matrix-row-active"
+                : "",
+            opciones.roles_camino_filas?.[indice_fila]
+                ? `matrix-path-node-${opciones.roles_camino_filas[indice_fila]}`
                 : "",
         ]
             .filter(Boolean)
@@ -893,7 +946,7 @@ function renderizar_puntos_pasos() {
                            ${paso.camino
                                .map(
                                    (nodo, indice) =>
-                                       `${indice ? '<span class="algorithm-path-arrow" aria-hidden="true">→</span>' : ""}<span class="algorithm-path-node-chip">${nodo}</span>`,
+                                       `${indice ? '<span class="algorithm-path-arrow" aria-hidden="true">→</span>' : ""}<span class="algorithm-path-node-chip ${indice === 0 ? "path-start" : indice === paso.camino.length - 1 ? "path-end" : "path-middle"}">${nodo}</span>`,
                                )
                                .join("")}
                        </div>
@@ -955,6 +1008,28 @@ function obtener_contenido_paso_algoritmo() {
     const orden_columnas =
         paso.orden_columnas ??
         Array.from({ length: estado.n }, (_, indice) => indice);
+    const celdas_camino = new Map();
+    const roles_camino_filas = Array(estado.n).fill(null);
+    const roles_camino_columnas = Array(estado.n).fill(null);
+    (paso.camino ?? []).forEach((nodo, indice) => {
+        const rol =
+            indice === 0
+                ? "start"
+                : indice === paso.camino.length - 1
+                  ? "end"
+                  : "middle";
+        const indice_nodo = nodo - 1;
+        roles_camino_filas[orden_filas.indexOf(indice_nodo)] = rol;
+        roles_camino_columnas[orden_columnas.indexOf(indice_nodo)] = rol;
+    });
+    (paso.aristas_camino ?? []).forEach(([origen, destino], indice) => {
+        const indice_fila = orden_filas.indexOf(origen);
+        const indice_columna = orden_columnas.indexOf(destino);
+        celdas_camino.set(
+            `${indice_fila}-${indice_columna}`,
+            indice === 0 ? "start" : "middle",
+        );
+    });
     const componente_por_nodo = new Array(estado.n).fill(null);
 
     if (paso.tipo === "componente") {
@@ -990,6 +1065,9 @@ function obtener_contenido_paso_algoritmo() {
                         ? paso.cantidad_ordenada - 1
                         : null,
                 celda_actual: paso.celda_actual,
+                celdas_camino,
+                roles_camino_filas,
+                roles_camino_columnas,
                 ...(paso.tipo === "componente"
                     ? {
                           bloque_de_filas: orden_filas.map(
@@ -1002,6 +1080,14 @@ function obtener_contenido_paso_algoritmo() {
                     : {}),
             },
         ),
+        html_leyenda_camino:
+            paso.tipo === "camino"
+                ? `<div class="matrix-path-legend" aria-label="Colores compartidos entre el grafo y la matriz">
+                       <span class="matrix-path-legend-item"><span class="matrix-path-swatch matrix-start-swatch"></span>Inicio y primer tramo</span>
+                       <span class="matrix-path-legend-item"><span class="matrix-path-swatch matrix-middle-swatch"></span>Nodo intermedio y su tramo</span>
+                       <span class="matrix-path-legend-item"><span class="matrix-path-swatch matrix-end-swatch"></span>Destino y relación agregada</span>
+                   </div>`
+                : "",
         mapa_colores:
             paso.tipo === "componente"
                 ? crear_mapa_colores_componentes(
@@ -1087,16 +1173,27 @@ function actualizar_colores_grafo_algoritmo(mapa_colores, paso) {
                     componente_por_nodo[destino],
         );
         const aristas_camino = paso.aristas_camino ?? [];
-        const arista_es_parte_del_camino = aristas_camino.some(
+        const indice_tramo_camino = aristas_camino.findIndex(
             ([origen_camino, destino_camino]) =>
                 (origen === origen_camino && destino === destino_camino) ||
                 (arista.data("bidireccional") &&
                     origen === destino_camino &&
                     destino === origen_camino),
         );
+        const es_tramo_inicio = indice_tramo_camino === 0;
+        const es_tramo_intermedio =
+            indice_tramo_camino > 0;
         arista.toggleClass(
             "analysis-path-edge",
-            paso.tipo === "camino" && arista_es_parte_del_camino,
+            paso.tipo === "camino" && indice_tramo_camino !== -1,
+        );
+        arista.toggleClass(
+            "analysis-path-start-edge",
+            paso.tipo === "camino" && es_tramo_inicio,
+        );
+        arista.toggleClass(
+            "analysis-path-middle-edge",
+            paso.tipo === "camino" && es_tramo_intermedio,
         );
     });
 }
@@ -1128,6 +1225,8 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     document.querySelector(".steps-nav").innerHTML = renderizar_puntos_pasos();
     document.querySelector(".matrix-column .matrix-scroll").outerHTML =
         contenido.html_matriz_cuerpo;
+    document.querySelector(".matrix-path-legend-slot").innerHTML =
+        contenido.html_leyenda_camino;
     document.querySelector(".algo-nav").innerHTML =
         renderizar_navegacion_algoritmo();
     actualizar_colores_grafo_algoritmo(
@@ -1195,6 +1294,7 @@ function renderizar_pantalla_algoritmo() {
     const contenido = obtener_contenido_paso_algoritmo();
     const {
         html_matriz_cuerpo,
+        html_leyenda_camino,
         mapa_colores,
         fase,
         fase_titulo,
@@ -1224,6 +1324,7 @@ function renderizar_pantalla_algoritmo() {
         <div class="matrix-column">
           <div class="matrix-meta"><span>${n} × ${n}</span><span>Fila: origen · columna: destino</span></div>
           ${html_matriz_cuerpo}
+          <div class="matrix-path-legend-slot">${html_leyenda_camino}</div>
         </div>
       </div>
 

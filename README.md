@@ -17,6 +17,10 @@ filas iguales de una componente. Después, las columnas se acomodan siguiendo
 exactamente el mismo orden de las filas; no se ordenan por su propio conteo de
 unos. Los bloques diagonales de unos muestran los grupos.
 
+Durante la fase de alcance, los tramos de la matriz comparten colores con las
+aristas del grafo: verde para el inicio, azul para los tramos desde nodos
+intermedios y naranja para la nueva relación de alcanzabilidad y su destino.
+
 En las visualizaciones, una pareja de aristas opuestas se dibuja como una
 sola conexión con flechas en ambos extremos. Las conexiones entre componentes
 se ocultan al presentar los grupos, para que cada componente se aprecie por

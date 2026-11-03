@@ -44,11 +44,7 @@
 
     function obtener_nombres_red(cantidad) {
         validar_cantidad(cantidad);
-        return Array.from({ length: cantidad }, (_, indice) =>
-            indice < nombres_disponibles.length
-                ? nombres_disponibles[indice]
-                : `Persona ${indice + 1}`,
-        );
+        return nombres_disponibles.slice(0, cantidad);
     }
 
     function generar_matriz_aleatoria(cantidad) {

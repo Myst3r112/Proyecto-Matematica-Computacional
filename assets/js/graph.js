@@ -12,7 +12,7 @@
         "Iris",
         "José",
         "Kira",
-        "Luis"
+        "Luis",
     ];
     const CANTIDAD_MINIMA_USUARIOS = 4;
     const CANTIDAD_MAXIMA_USUARIOS = 12;
@@ -162,14 +162,9 @@
         );
     }
 
-    function calcular_datos_algoritmo(matriz, registrar_pasos = true) {
-        validar_matriz(matriz);
-        const cantidad = matriz.length;
-        const pasos = [];
-        const matriz_caminos = matriz.map((fila) => [...fila]);
-
-        function registrar_paso(datos) {
-            if (!registrar_pasos) return;
+    function crear_registrador_pasos(pasos, matriz_caminos, habilitado) {
+        return (datos) => {
+            if (!habilitado) return;
 
             pasos.push({
                 ...datos,
@@ -177,7 +172,185 @@
                     datos.matriz ??
                     matriz_caminos.map((fila) => [...fila]),
             });
+        };
+    }
+
+    function reconstruir_camino(destino, origen, predecesores) {
+        const camino = [destino];
+        let anterior = destino;
+
+        while (anterior !== origen) {
+            anterior = predecesores.get(anterior);
+            camino.unshift(anterior);
         }
+
+        return camino;
+    }
+
+    function registrar_caminos_desde_origen(
+        matriz,
+        matriz_caminos,
+        origen,
+        registrar_paso,
+    ) {
+        const visitados = new Set([origen]);
+        const pendientes = [origen];
+        const predecesores = new Map();
+
+        while (pendientes.length > 0) {
+            const actual = pendientes.pop();
+            const destinos = matriz[actual]
+                .map((hay_arista, destino) => (hay_arista ? destino : -1))
+                .filter(
+                    (destino) =>
+                        destino !== -1 && !visitados.has(destino),
+                )
+                .reverse();
+
+            destinos.forEach((destino) => {
+                visitados.add(destino);
+                predecesores.set(destino, actual);
+                pendientes.push(destino);
+
+                if (matriz_caminos[origen][destino] !== 0) return;
+
+                matriz_caminos[origen][destino] = 1;
+                const camino = reconstruir_camino(
+                    destino,
+                    origen,
+                    predecesores,
+                );
+
+                registrar_paso({
+                    fase: "alcance",
+                    tipo: "camino",
+                    nodo_actual: actual,
+                    celda_actual: [origen, destino],
+                    titulo: `Agregar camino ${origen + 1} → ${destino + 1}`,
+                    camino: camino.map((nodo) => nodo + 1),
+                    aristas_camino: camino.slice(1).map((nodo, indice) => [
+                        camino[indice],
+                        nodo,
+                    ]),
+                });
+            });
+        }
+    }
+
+    function registrar_pasos_ordenamiento(
+        matriz_caminos,
+        orden,
+        cantidad,
+        registrar_paso,
+    ) {
+        const orden_original = Array.from(
+            { length: cantidad },
+            (_, indice) => indice,
+        );
+
+        for (
+            let cantidad_ordenada = 1;
+            cantidad_ordenada <= cantidad;
+            cantidad_ordenada++
+        ) {
+            const orden_filas = crear_orden_parcial(
+                orden,
+                cantidad_ordenada,
+            );
+
+            registrar_paso({
+                fase: "orden",
+                tipo: "orden-fila",
+                cantidad_ordenada,
+                orden_filas,
+                orden_columnas: orden_original,
+                matriz: reordenar_matriz(
+                    matriz_caminos,
+                    orden_filas,
+                    orden_original,
+                ),
+                titulo: `Ordenar fila ${cantidad_ordenada} de ${cantidad}`,
+            });
+        }
+
+        for (
+            let cantidad_ordenada = 1;
+            cantidad_ordenada <= cantidad;
+            cantidad_ordenada++
+        ) {
+            const orden_columnas = crear_orden_parcial(
+                orden,
+                cantidad_ordenada,
+            );
+
+            registrar_paso({
+                fase: "orden",
+                tipo: "orden-columna",
+                cantidad_ordenada,
+                orden_filas: orden,
+                orden_columnas,
+                matriz: reordenar_matriz(
+                    matriz_caminos,
+                    orden,
+                    orden_columnas,
+                ),
+                titulo: `Colocar columna ${orden[cantidad_ordenada - 1] + 1} según el orden de las filas`,
+            });
+        }
+    }
+
+    function registrar_pasos_componentes(
+        matriz_caminos,
+        orden,
+        componentes,
+        registrar_paso,
+    ) {
+        const matriz_ordenada = reordenar_matriz(
+            matriz_caminos,
+            orden,
+            orden,
+        );
+
+        componentes.forEach((componente, indice_componente) => {
+            registrar_paso({
+                fase: "grupos",
+                tipo: "componente",
+                matriz: matriz_ordenada,
+                orden_filas: orden,
+                orden_columnas: orden,
+                componentes_mostradas: indice_componente + 1,
+                titulo: `Mostrar componente ${indice_componente + 1}`,
+            });
+        });
+    }
+
+    function ordenar_componentes_por_filas(componentes, orden) {
+        const posicion_nodo = new Map(
+            orden.map((nodo, indice) => [nodo, indice]),
+        );
+
+        componentes.sort(
+            (componente_a, componente_b) =>
+                Math.min(
+                    ...componente_a.map((nodo) => posicion_nodo.get(nodo)),
+                ) -
+                Math.min(
+                    ...componente_b.map((nodo) => posicion_nodo.get(nodo)),
+                ),
+        );
+    }
+
+    function calcular_datos_algoritmo(matriz, registrar_pasos = true) {
+        validar_matriz(matriz);
+
+        const cantidad = matriz.length;
+        const pasos = [];
+        const matriz_caminos = matriz.map((fila) => [...fila]);
+        const registrar_paso = crear_registrador_pasos(
+            pasos,
+            matriz_caminos,
+            registrar_pasos,
+        );
 
         registrar_paso({
             fase: "amistades",
@@ -196,56 +369,12 @@
         }
 
         for (let origen = 0; origen < cantidad; origen++) {
-            const visitados = new Set([origen]);
-            const pendientes = [origen];
-            const predecesores = new Map();
-
-            while (pendientes.length > 0) {
-                const actual = pendientes.pop();
-                const destinos = matriz[actual]
-                    .map((hay_arista, destino) =>
-                        hay_arista ? destino : -1,
-                    )
-                    .filter(
-                        (destino) =>
-                            destino !== -1 && !visitados.has(destino),
-                    )
-                    .reverse();
-
-                destinos.forEach((destino) => {
-                    visitados.add(destino);
-                    predecesores.set(destino, actual);
-                    pendientes.push(destino);
-
-                    let cambio_matriz = false;
-                    if (matriz_caminos[origen][destino] === 0) {
-                        matriz_caminos[origen][destino] = 1;
-                        cambio_matriz = true;
-                    }
-
-                    if (!cambio_matriz) return;
-
-                    const camino = [destino];
-                    let anterior = destino;
-                    while (anterior !== origen) {
-                        anterior = predecesores.get(anterior);
-                        camino.unshift(anterior);
-                    }
-
-                    registrar_paso({
-                        fase: "alcance",
-                        tipo: "camino",
-                        nodo_actual: actual,
-                        celda_actual: [origen, destino],
-                        titulo: `Agregar camino ${origen + 1} → ${destino + 1}`,
-                        camino: camino.map((nodo) => nodo + 1),
-                        aristas_camino: camino.slice(1).map((nodo, indice) => [
-                            camino[indice],
-                            nodo,
-                        ]),
-                    });
-                });
-            }
+            registrar_caminos_desde_origen(
+                matriz,
+                matriz_caminos,
+                origen,
+                registrar_paso,
+            );
         }
 
         registrar_paso({
@@ -258,96 +387,24 @@
             matriz_caminos,
         );
         const orden = crear_orden_filas(matriz_caminos);
-        const posicion_nodo = new Map(
-            orden.map((nodo, indice) => [nodo, indice]),
-        );
-        componentes.sort(
-            (componente_a, componente_b) =>
-                Math.min(
-                    ...componente_a.map((nodo) => posicion_nodo.get(nodo)),
-                ) -
-                Math.min(
-                    ...componente_b.map((nodo) => posicion_nodo.get(nodo)),
-                ),
-        );
+        ordenar_componentes_por_filas(componentes, orden);
+
         if (registrar_pasos) {
-            const orden_original = Array.from(
-                { length: cantidad },
-                (_, indice) => indice,
-            );
-
-            for (
-                let cantidad_ordenada = 1;
-                cantidad_ordenada <= cantidad;
-                cantidad_ordenada++
-            ) {
-                const orden_filas = crear_orden_parcial(
-                    orden,
-                    cantidad_ordenada,
-                );
-
-                registrar_paso({
-                    fase: "orden",
-                    tipo: "orden-fila",
-                    cantidad_ordenada,
-                    orden_filas,
-                    orden_columnas: orden_original,
-                    matriz: reordenar_matriz(
-                        matriz_caminos,
-                        orden_filas,
-                        orden_original,
-                    ),
-                    titulo: `Ordenar fila ${cantidad_ordenada} de ${cantidad}`,
-                });
-            }
-
-            for (
-                let cantidad_ordenada = 1;
-                cantidad_ordenada <= cantidad;
-                cantidad_ordenada++
-            ) {
-                const orden_columnas = crear_orden_parcial(
-                    orden,
-                    cantidad_ordenada,
-                );
-
-                registrar_paso({
-                    fase: "orden",
-                    tipo: "orden-columna",
-                    cantidad_ordenada,
-                    orden_filas: orden,
-                    orden_columnas,
-                    matriz: reordenar_matriz(
-                        matriz_caminos,
-                        orden,
-                        orden_columnas,
-                    ),
-                    titulo: `Colocar columna ${orden[cantidad_ordenada - 1] + 1} según el orden de las filas`,
-                });
-            }
-
-            const matriz_ordenada = reordenar_matriz(
+            registrar_pasos_ordenamiento(
                 matriz_caminos,
                 orden,
-                orden,
+                cantidad,
+                registrar_paso,
             );
-            componentes.forEach((componente, indice_componente) => {
-                registrar_paso({
-                    fase: "grupos",
-                    tipo: "componente",
-                    matriz: matriz_ordenada,
-                    orden_filas: orden,
-                    orden_columnas: orden,
-                    componentes_mostradas: indice_componente + 1,
-                    titulo: `Mostrar componente ${indice_componente + 1}`,
-                });
-            });
+            registrar_pasos_componentes(
+                matriz_caminos,
+                orden,
+                componentes,
+                registrar_paso,
+            );
         }
 
-        return {
-            componentes,
-            pasos,
-        };
+        return { componentes, pasos };
     }
 
     function validar_matriz(matriz) {

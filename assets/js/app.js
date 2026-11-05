@@ -14,6 +14,7 @@ const {
 let estado = null;
 let configuraciones_grafos = [];
 let instancias_grafos = [];
+let distribuciones_grafos = [];
 let distribucion_previsualizacion = null;
 const cache_previsualizacion = {
     cantidad: null,
@@ -106,7 +107,22 @@ function crear_matriz_ciclos_componentes(componentes, cantidad_nodos) {
     return matriz;
 }
 
-/* Prepara los datos para mostrar la red interactiva */
+function crear_mapa_componentes_por_nodo(
+    componentes,
+    cantidad_nodos,
+    limite_componentes = componentes?.length ?? 0,
+) {
+    const componente_por_nodo = new Array(cantidad_nodos).fill(null);
+
+    componentes?.slice(0, limite_componentes).forEach((componente, indice) => {
+        componente.forEach((nodo) => {
+            componente_por_nodo[nodo] = indice;
+        });
+    });
+
+    return componente_por_nodo;
+}
+
 function renderizar_grafo(opciones) {
     const indice = configuraciones_grafos.push(opciones) - 1;
     return `
@@ -123,13 +139,10 @@ function renderizar_grafo(opciones) {
 
 function crear_datos_aristas(matriz, mapa_colores, componentes) {
     const cantidad = matriz.length;
-    const componente_por_nodo = new Array(cantidad).fill(null);
-
-    componentes?.forEach((componente, indice_componente) => {
-        componente.forEach((nodo) => {
-            componente_por_nodo[nodo] = indice_componente;
-        });
-    });
+    const componente_por_nodo = crear_mapa_componentes_por_nodo(
+        componentes,
+        cantidad,
+    );
 
     const aristas = [];
     for (let fila = 0; fila < cantidad; fila++) {
@@ -219,11 +232,13 @@ function crear_posiciones_componentes(instancia, componentes) {
     return posiciones;
 }
 
-function crear_opciones_distribucion(posiciones) {
+function crear_opciones_distribucion(posiciones, movimiento_reducido) {
+    const animar_posiciones = Boolean(posiciones) && !movimiento_reducido;
+
     return {
         name: posiciones ? "preset" : "cose",
-        animate: Boolean(posiciones),
-        animationDuration: posiciones ? 700 : 0,
+        animate: animar_posiciones,
+        animationDuration: animar_posiciones ? 700 : 0,
         animationEasing: "ease-in-out",
         fit: false,
         padding: 30,
@@ -246,26 +261,41 @@ function crear_opciones_distribucion(posiciones) {
 }
 
 function ejecutar_distribucion(instancia, lienzo, opciones) {
+    const indice = Number(lienzo.dataset.networkIndex);
+    distribuciones_grafos[indice]?.stop();
+
     const es_previsualizacion = opciones.previsualizacion === true;
+    const movimiento_reducido = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+    ).matches;
     const posiciones = opciones.organizar_componentes
         ? crear_posiciones_componentes(instancia, opciones.componentes)
         : null;
 
     const distribucion = instancia.layout(
-        crear_opciones_distribucion(posiciones),
+        crear_opciones_distribucion(posiciones, movimiento_reducido),
     );
     if (es_previsualizacion) {
         distribucion_previsualizacion = distribucion;
     }
+    distribuciones_grafos[indice] = distribucion;
 
     distribucion.one("layoutstop", () => {
-        const indice = Number(lienzo.dataset.networkIndex);
-        if (configuraciones_grafos[indice] !== opciones) return;
+        if (
+            distribuciones_grafos[indice] !== distribucion ||
+            configuraciones_grafos[indice] !== opciones
+        ) {
+            return;
+        }
         if (posiciones) {
-            instancia.animate(
-                { fit: { eles: instancia.elements(), padding: 42 } },
-                { duration: 350, easing: "ease-in-out" },
-            );
+            if (movimiento_reducido) {
+                instancia.fit(instancia.elements(), 42);
+            } else {
+                instancia.animate(
+                    { fit: { eles: instancia.elements(), padding: 42 } },
+                    { duration: 350, easing: "ease-in-out" },
+                );
+            }
         } else {
             instancia.fit(instancia.elements(), 42);
         }
@@ -276,6 +306,8 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
 function posicionar_grafos() {
     distribucion_previsualizacion?.stop();
     distribucion_previsualizacion = null;
+    distribuciones_grafos.forEach((distribucion) => distribucion?.stop());
+    distribuciones_grafos = [];
     instancias_grafos.forEach((instancia) => {
         instancia.stop();
         instancia.destroy();
@@ -536,7 +568,6 @@ window.addEventListener("resize", () => {
     });
 });
 
-/* Construye una tabla para la matriz */
 function renderizar_tabla_matriz(
     matriz,
     etiquetas_filas,
@@ -663,7 +694,6 @@ function hexadecimal_a_rgba(hexadecimal, opacidad) {
     return `rgba(${rojo},${verde},${azul},${opacidad})`;
 }
 
-/* Pantalla de configuración */
 function renderizar_pantalla_configuracion() {
     const n = estado.n;
     const porcentaje_relleno = calcular_porcentaje_red(n);
@@ -761,7 +791,6 @@ function crear_opciones_previsualizacion(cantidad) {
     };
 }
 
-/* Pantalla para armar la red */
 function renderizar_pantalla_construccion() {
     const n = estado.n;
     const conexiones = obtener_conexiones_manuales();
@@ -863,7 +892,7 @@ function actualizar_interfaz_construccion(instancia) {
 
     const conexiones = obtener_conexiones_manuales();
     indicacion.innerHTML = obtener_texto_indicacion_manual();
-    resumen.innerHTML = `    <span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
+    resumen.innerHTML = `<span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
     panel_conexiones.innerHTML = conexiones.html;
     const nodos_aislados = obtener_nodos_aislados(estado.matriz);
     const mensaje_aislados = document.querySelector(
@@ -918,7 +947,6 @@ function actualizar_interfaz_construccion(instancia) {
     aristas_deseadas.forEach((arista) => instancia.add(arista));
 }
 
-/* Explicación del algoritmo paso a paso */
 function renderizar_puntos_pasos() {
     const indice_paso = Math.max(estado.paso_algoritmo, 0);
     const paso = estado.pasos[indice_paso];
@@ -1011,37 +1039,25 @@ function obtener_contenido_paso_algoritmo() {
     const celdas_camino = new Map();
     const roles_camino_filas = Array(estado.n).fill(null);
     const roles_camino_columnas = Array(estado.n).fill(null);
-    (paso.camino ?? []).forEach((nodo, indice) => {
-        const rol =
-            indice === 0
-                ? "start"
-                : indice === paso.camino.length - 1
-                  ? "end"
-                  : "middle";
-        const indice_nodo = nodo - 1;
-        roles_camino_filas[orden_filas.indexOf(indice_nodo)] = rol;
-        roles_camino_columnas[orden_columnas.indexOf(indice_nodo)] = rol;
-    });
     (paso.aristas_camino ?? []).forEach(([origen, destino], indice) => {
         const indice_fila = orden_filas.indexOf(origen);
         const indice_columna = orden_columnas.indexOf(destino);
+        roles_camino_filas[indice_fila] = indice === 0 ? "start" : "middle";
+        roles_camino_columnas[indice_columna] =
+            indice === paso.aristas_camino.length - 1 ? "end" : "middle";
         celdas_camino.set(
             `${indice_fila}-${indice_columna}`,
             indice === 0 ? "start" : "middle",
         );
     });
-    const componente_por_nodo = new Array(estado.n).fill(null);
-
-    if (paso.tipo === "componente") {
-        estado.componentes.forEach((componente, indice_comunidad) => {
-            componente.forEach((nodo) => {
-                componente_por_nodo[nodo] =
-                    indice_comunidad < paso.componentes_mostradas
-                        ? indice_comunidad
-                        : null;
-            });
-        });
-    }
+    const componente_por_nodo =
+        paso.tipo === "componente"
+            ? crear_mapa_componentes_por_nodo(
+                  estado.componentes,
+                  estado.n,
+                  paso.componentes_mostradas,
+              )
+            : null;
 
     return {
         paso,
@@ -1153,12 +1169,10 @@ function actualizar_colores_grafo_algoritmo(mapa_colores, paso) {
                 indice_camino === paso.camino.length - 1,
         );
     });
-    const componente_por_nodo = new Array(estado.n).fill(null);
-    estado.componentes.forEach((componente, indice_componente) => {
-        componente.forEach((nodo) => {
-            componente_por_nodo[nodo] = indice_componente;
-        });
-    });
+    const componente_por_nodo = crear_mapa_componentes_por_nodo(
+        estado.componentes,
+        estado.n,
+    );
     instancia.edges().forEach((arista) => {
         const origen = Number(arista.source().id());
         const destino = Number(arista.target().id());
@@ -1449,14 +1463,10 @@ function renderizar_etapa_analisis_original(indice, etapas) {
         { length: estado.n },
         (_, indice_nodo) => String(indice_nodo + 1),
     );
-    const componente_por_nodo = new Array(estado.n).fill(null);
-    if (etapa.componentes) {
-        etapa.componentes.forEach((componente, indice_componente) => {
-            componente.forEach((nodo) => {
-                componente_por_nodo[nodo] = indice_componente;
-            });
-        });
-    }
+    const componente_por_nodo = crear_mapa_componentes_por_nodo(
+        etapa.componentes,
+        estado.n,
+    );
 
     const etiquetas_filas = etapa.orden_filas.map(
         (nodo) => etiquetas[nodo],
@@ -1474,10 +1484,6 @@ function renderizar_etapa_analisis_original(indice, etapas) {
               ),
           }
         : {};
-    const contenido_componentes = etapa.componentes
-        ? `<div class="original-analysis-components">${renderizar_tarjetas_componentes(etapa.componentes)}</div>`
-        : "";
-
     return `
         <div
             class="original-analysis-stage-content"
@@ -1502,8 +1508,93 @@ function renderizar_etapa_analisis_original(indice, etapas) {
                     opciones_matriz,
                 )}
             </div>
-            ${contenido_componentes}
         </div>`;
+}
+
+function actualizar_grafo_original_por_etapa(indice, etapas) {
+    const lienzo = document.querySelector(
+        ".result-original-layout .network-canvas",
+    );
+    if (!lienzo) return;
+
+    const instancia = instancias_grafos[Number(lienzo.dataset.networkIndex)];
+    if (!instancia) return;
+
+    const etapa = etapas[indice];
+    const componentes = etapa.componentes;
+    const componentes_ordenados = componentes
+        ? componentes.map((componente) =>
+              ordenar_nodos_componente(componente, etapa.orden_filas),
+          )
+        : null;
+    const mapa_colores = componentes
+        ? crear_mapa_colores_componentes(componentes_ordenados, estado.n)
+        : null;
+    const opciones = {
+        ...configuraciones_grafos[Number(lienzo.dataset.networkIndex)],
+        matriz: componentes
+            ? crear_matriz_ciclos_componentes(componentes_ordenados, estado.n)
+            : estado.matriz,
+        mapa_colores,
+        componentes: componentes_ordenados,
+        organizar_componentes: Boolean(componentes),
+    };
+    const indice_grafo = Number(lienzo.dataset.networkIndex);
+    configuraciones_grafos[indice_grafo] = opciones;
+
+    instancia.stop();
+    instancia.edges().remove();
+    instancia.add(
+        crear_datos_aristas(
+            opciones.matriz,
+            opciones.mapa_colores,
+            opciones.componentes,
+        ),
+    );
+    instancia.nodes().forEach((nodo) => {
+        const indice_nodo = Number(nodo.id());
+        nodo.data(
+            "color",
+            mapa_colores?.[indice_nodo] ?? color_nodo_neutro,
+        );
+    });
+
+    const leyenda = document.querySelector(
+        ".original-graph-component-legend",
+    );
+    if (leyenda) leyenda.hidden = !componentes;
+    if (leyenda) {
+        leyenda.textContent = componentes
+            ? "Vista simplificada: un ciclo de alcance por componente. Los nodos aislados representan componentes de un solo nodo."
+            : "";
+    }
+
+    const encabezado_grafo = document.querySelector(
+        ".result-original-heading h2",
+    );
+    if (encabezado_grafo) {
+        encabezado_grafo.textContent = componentes
+            ? "Componentes fuertemente conexas"
+            : "Grafo original";
+    }
+
+    const caja_grafo = document.getElementById("original-graph-box");
+    if (caja_grafo) {
+        caja_grafo.setAttribute(
+            "aria-label",
+            componentes
+                ? "Componentes fuertemente conexas representadas por grupo"
+                : "Grafo original completo",
+        );
+    }
+
+    lienzo.setAttribute(
+        "aria-label",
+        componentes
+            ? `Componentes fuertemente conexas: ${componentes.length} grupos representados como ciclos separados`
+            : `Grafo dirigido con ${estado.n} nodos`,
+    );
+    ejecutar_distribucion(instancia, lienzo, opciones);
 }
 
 function actualizar_etapa_analisis_original(indice) {
@@ -1512,6 +1603,7 @@ function actualizar_etapa_analisis_original(indice) {
         throw new RangeError("La etapa del análisis seleccionado no existe.");
     }
 
+    const indice_anterior = estado.paso_analisis_original;
     estado.paso_analisis_original = indice;
     document.querySelectorAll(".original-analysis-tab").forEach((pestana) => {
         const esta_activa = Number(pestana.dataset.step) === indice;
@@ -1533,12 +1625,17 @@ function actualizar_etapa_analisis_original(indice) {
     if (!contenido || !boton_anterior || !boton_siguiente) return;
 
     contenido.innerHTML = renderizar_etapa_analisis_original(indice, etapas);
+    if (
+        (indice_anterior === 2 && indice === 3) ||
+        (indice_anterior === 3 && indice === 2)
+    ) {
+        actualizar_grafo_original_por_etapa(indice, etapas);
+    }
     if (contador) contador.textContent = `${indice + 1} / ${etapas.length}`;
     boton_anterior.disabled = indice === 0;
     boton_siguiente.disabled = indice === etapas.length - 1;
 }
 
-/* Resultado de las comunidades */
 function renderizar_pantalla_resultado() {
     const n = estado.n;
     const etapas_analisis = obtener_etapas_analisis_original();
@@ -1623,6 +1720,9 @@ function renderizar_pantalla_resultado() {
                 matriz: estado.matriz,
                 nombres: estado.nombres,
             })}
+            <p class="original-graph-component-legend" hidden>
+              Vista simplificada: un ciclo de alcance por componente. Los nodos aislados representan componentes de un solo nodo.
+            </p>
           </div>
           <section class="original-analysis" aria-label="Proceso de análisis">
             <div class="original-analysis-heading">
@@ -1672,7 +1772,6 @@ function renderizar_pantalla_resultado() {
   </section>`;
 }
 
-/* Muestra la pantalla actual */
 function renderizar() {
     const app = document.getElementById("app");
     const renderizar_pantalla = renderizadores_pantalla[estado.pantalla];
@@ -1949,7 +2048,6 @@ document.addEventListener("input", (evento) => {
     actualizar_vista_previa(cantidad);
 });
 
-/* Inicia la aplicación */
 estado = crear_estado_inicial();
 renderizar();
 

@@ -4,7 +4,7 @@ Aplicación web para crear grafos dirigidos de 4 a 12 nodos y explorar, paso a
 paso, sus componentes fuertemente conexas mediante matrices de adyacencia y
 caminos.
 
-## Análisis del grafo
+## Análisis del grafo   
 
 El análisis agrega la diagonal a la matriz de adyacencia y obtiene la matriz de
 caminos mediante recorridos en profundidad desde cada nodo. Dos nodos

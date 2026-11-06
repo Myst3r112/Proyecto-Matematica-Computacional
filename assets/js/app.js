@@ -16,7 +16,11 @@ let estado = null;
 let configuraciones_grafos = [];
 let instancias_grafos = [];
 let distribuciones_grafos = [];
-let distribucion_previsualizacion = null;
+let temporizador_avance_automatico = null;
+let avance_automatico_activo = false;
+const INTERVALO_AVANCE_AUTOMATICO = 900;
+const VELOCIDADES_AVANCE_AUTOMATICO = [1, 2, 3, 4];
+let indice_velocidad_avance_automatico = 0;
 const cache_previsualizacion = {
     cantidad: null,
     matriz: null,
@@ -40,6 +44,7 @@ const colores_camino = {
     destino: "#e45118",
 };
 
+// Crea los valores iniciales para todas las pantallas.
 function crear_estado_inicial() {
     return {
         pantalla: "config",
@@ -55,13 +60,14 @@ function crear_estado_inicial() {
     };
 }
 
+// Calcula las componentes y los pasos que explican el análisis.
 function ejecutar_algoritmo() {
     const { componentes, pasos } = calcular_datos_algoritmo(estado.matriz);
     estado.componentes = componentes;
     estado.pasos = pasos;
 }
 
-// Helpers para preparar la estructura y los colores de cada componente.
+// Encuentra los nodos sin aristas entrantes ni salientes.
 function obtener_nodos_aislados(matriz) {
     const tiene_conexion = new Array(matriz.length).fill(false);
 
@@ -82,18 +88,21 @@ function obtener_nodos_aislados(matriz) {
     );
 }
 
+// Aplica al componente el orden definido para los nodos.
 function ordenar_nodos_componente(componente, orden_nodos) {
     const nodos_componente = new Set(componente);
     const nodos_ordenados = orden_nodos.filter((nodo) =>
         nodos_componente.has(nodo),
     );
+    const conjunto_ordenados = new Set(nodos_ordenados);
     const nodos_pendientes = componente.filter(
-        (nodo) => !nodos_ordenados.includes(nodo),
+        (nodo) => !conjunto_ordenados.has(nodo),
     );
 
     return [...nodos_ordenados, ...nodos_pendientes];
 }
 
+// Crea una matriz visual con un ciclo por cada componente.
 function crear_matriz_ciclos_componentes(componentes, cantidad_nodos) {
     const matriz = crear_matriz_vacia(cantidad_nodos);
 
@@ -109,6 +118,7 @@ function crear_matriz_ciclos_componentes(componentes, cantidad_nodos) {
     return matriz;
 }
 
+// Indica a qué componente pertenece cada nodo.
 function crear_mapa_componentes_por_nodo(
     componentes,
     cantidad_nodos,
@@ -125,7 +135,7 @@ function crear_mapa_componentes_por_nodo(
     return componente_por_nodo;
 }
 
-// Genera los contenedores y elementos usados para dibujar cada grafo.
+// Genera el contenedor y los controles de un grafo.
 function renderizar_grafo(opciones) {
     const indice = configuraciones_grafos.push(opciones) - 1;
     return `
@@ -140,6 +150,7 @@ function renderizar_grafo(opciones) {
         </div>`;
 }
 
+// Convierte la matriz de adyacencia en aristas para Cytoscape.
 function crear_datos_aristas(matriz, mapa_colores, componentes) {
     const cantidad = matriz.length;
     const componente_por_nodo = crear_mapa_componentes_por_nodo(
@@ -183,6 +194,7 @@ function crear_datos_aristas(matriz, mapa_colores, componentes) {
     return aristas;
 }
 
+// Combina los datos de nodos y aristas para crear un grafo.
 function crear_elementos_grafo(opciones) {
     const cantidad = opciones.n;
     const nodos = Array.from({ length: cantidad }, (_, indice) => ({
@@ -202,6 +214,7 @@ function crear_elementos_grafo(opciones) {
     return [...nodos, ...aristas];
 }
 
+// Distribuye los nodos de cada componente en posiciones circulares.
 function crear_posiciones_componentes(instancia, componentes) {
     const ancho = instancia.width();
     const alto = instancia.height();
@@ -235,6 +248,7 @@ function crear_posiciones_componentes(instancia, componentes) {
     return posiciones;
 }
 
+// Configura el algoritmo de distribución y sus animaciones.
 function crear_opciones_distribucion(posiciones, movimiento_reducido) {
     const animar_posiciones = Boolean(posiciones) && !movimiento_reducido;
 
@@ -263,12 +277,12 @@ function crear_opciones_distribucion(posiciones, movimiento_reducido) {
     };
 }
 
+// Ejecuta la distribución y ajusta la vista al terminar.
 function ejecutar_distribucion(instancia, lienzo, opciones) {
     const indice = Number(lienzo.dataset.networkIndex);
     // Evita que layouts anteriores sigan animándose sobre el mismo grafo.
     distribuciones_grafos[indice]?.stop();
 
-    const es_previsualizacion = opciones.previsualizacion === true;
     const movimiento_reducido = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -279,9 +293,6 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
     const distribucion = instancia.layout(
         crear_opciones_distribucion(posiciones, movimiento_reducido),
     );
-    if (es_previsualizacion) {
-        distribucion_previsualizacion = distribucion;
-    }
     distribuciones_grafos[indice] = distribucion;
 
     distribucion.one("layoutstop", () => {
@@ -307,9 +318,8 @@ function ejecutar_distribucion(instancia, lienzo, opciones) {
     distribucion.run();
 }
 
+// Destruye los grafos anteriores y crea los visibles en la pantalla.
 function posicionar_grafos() {
-    distribucion_previsualizacion?.stop();
-    distribucion_previsualizacion = null;
     distribuciones_grafos.forEach((distribucion) => distribucion?.stop());
     distribuciones_grafos = [];
     instancias_grafos.forEach((instancia) => {
@@ -511,6 +521,7 @@ function posicionar_grafos() {
     });
 }
 
+// Actualiza los datos y la disposición del grafo de vista previa.
 function actualizar_vista_previa(n) {
     const lienzo = document.querySelector(".preview-frame .network-canvas");
     if (!lienzo) return;
@@ -525,12 +536,12 @@ function actualizar_vista_previa(n) {
     };
     configuraciones_grafos[indice] = opciones;
     lienzo.setAttribute("aria-label", `Grafo dirigido con ${n} nodos`);
-    distribucion_previsualizacion?.stop();
     instancia.elements().remove();
     instancia.add(crear_elementos_grafo(opciones));
     ejecutar_distribucion(instancia, lienzo, opciones);
 }
 
+// Aplica zoom o encuadra el grafo asociado al control.
 function ajustar_vista_grafo(accion, control) {
     const lienzo = control.closest(".network-frame")?.querySelector(".network-canvas");
     if (!lienzo) return;
@@ -573,6 +584,70 @@ window.addEventListener("resize", () => {
     });
 });
 
+// Renderiza una celda con sus resaltados, colores y descripción accesible.
+function renderizar_celda_matriz(
+    valor,
+    indice_fila,
+    indice_columna,
+    etiquetas_filas,
+    etiquetas_columnas,
+    opciones,
+) {
+    let clases = valor ? "one" : "";
+    if (opciones.fila_orden_actual === indice_fila) {
+        clases += " matrix-row-active";
+    }
+    if (opciones.columna_orden_actual === indice_columna) {
+        clases += " matrix-column-active";
+    }
+    if (
+        opciones.diagonal_actual === indice_fila &&
+        indice_fila === indice_columna
+    ) {
+        clases += " diag";
+    }
+
+    const rol_tramo_camino = opciones.celdas_camino?.get(
+        `${indice_fila}-${indice_columna}`,
+    );
+    const es_tramo_camino = Boolean(rol_tramo_camino);
+    const es_alcance_agregado =
+        opciones.celda_actual?.[0] === indice_fila &&
+        opciones.celda_actual?.[1] === indice_columna;
+    if (es_alcance_agregado) {
+        clases += " matrix-path-active";
+    }
+    if (es_tramo_camino) {
+        clases += ` matrix-route-active matrix-route-${rol_tramo_camino}`;
+    }
+
+    const descripcion_celda = es_alcance_agregado
+        ? `Relación de alcance agregada: ${etiquetas_filas[indice_fila]} a ${etiquetas_columnas[indice_columna]}`
+        : es_tramo_camino
+          ? `Tramo del camino: ${etiquetas_filas[indice_fila]} a ${etiquetas_columnas[indice_columna]}`
+          : "";
+
+    let estilo_celda = "";
+    if (opciones.bloque_de_filas && opciones.bloque_de_columnas) {
+        const componente_fila = opciones.bloque_de_filas[indice_fila];
+        const componente_columna =
+            opciones.bloque_de_columnas[indice_columna];
+
+        if (
+            componente_fila !== undefined &&
+            componente_fila === componente_columna &&
+            componente_fila !== null
+        ) {
+            const color = obtener_color_componente(componente_fila);
+            const color_texto = valor ? color : "var(--text-muted)";
+            estilo_celda = `style="background:${hexadecimal_a_rgba(color, 0.16)}; color:${color_texto};"`;
+        }
+    }
+
+    return `<td class="${clases}" ${estilo_celda}${descripcion_celda ? ` aria-label="${valor}. ${descripcion_celda}" title="${descripcion_celda}"` : ""}>${valor}</td>`;
+}
+
+// Genera la tabla y los resaltados de una matriz.
 function renderizar_tabla_matriz(
     matriz,
     etiquetas_filas,
@@ -580,7 +655,6 @@ function renderizar_tabla_matriz(
     opciones = {},
 ) {
     const cantidad = matriz.length;
-    const tamano = "small";
     const encabezado_tabla = `<thead><tr><th></th>${etiquetas_columnas
         .map(
             (etiqueta, indice) => {
@@ -607,60 +681,14 @@ function renderizar_tabla_matriz(
             indice_columna < cantidad;
             indice_columna++
         ) {
-            const valor = matriz[indice_fila][indice_columna];
-            let clases = valor ? "one" : "";
-            if (opciones.fila_orden_actual === indice_fila) {
-                clases += " matrix-row-active";
-            }
-            if (opciones.columna_orden_actual === indice_columna) {
-                clases += " matrix-column-active";
-            }
-            if (
-                opciones.diagonal_actual === indice_fila &&
-                indice_fila === indice_columna
-            ) {
-                clases += " diag";
-            }
-            const rol_tramo_camino = opciones.celdas_camino?.get(
-                `${indice_fila}-${indice_columna}`,
+            celdas_html += renderizar_celda_matriz(
+                matriz[indice_fila][indice_columna],
+                indice_fila,
+                indice_columna,
+                etiquetas_filas,
+                etiquetas_columnas,
+                opciones,
             );
-            const es_tramo_camino = Boolean(rol_tramo_camino);
-            const es_alcance_agregado =
-                opciones.celda_actual?.[0] === indice_fila &&
-                opciones.celda_actual?.[1] === indice_columna;
-            if (es_alcance_agregado) {
-                clases += " matrix-path-active";
-            }
-            if (es_tramo_camino) {
-                clases += ` matrix-route-active matrix-route-${rol_tramo_camino}`;
-            }
-            const descripcion_celda = es_alcance_agregado
-                ? `Relación de alcance agregada: ${etiquetas_filas[indice_fila]} a ${etiquetas_columnas[indice_columna]}`
-                : es_tramo_camino
-                  ? `Tramo del camino: ${etiquetas_filas[indice_fila]} a ${etiquetas_columnas[indice_columna]}`
-                  : "";
-
-            let estilo_celda = "";
-            if (opciones.bloque_de_filas && opciones.bloque_de_columnas) {
-                const componente_fila =
-                    opciones.bloque_de_filas[indice_fila];
-                const componente_columna =
-                    opciones.bloque_de_columnas[indice_columna];
-
-                if (
-                    componente_fila !== undefined &&
-                    componente_fila === componente_columna &&
-                    componente_fila !== null
-                ) {
-                    const color = obtener_color_componente(componente_fila);
-                    const color_texto = valor
-                        ? color
-                        : "var(--text-muted)";
-                    estilo_celda = `style="background:${hexadecimal_a_rgba(color, 0.16)}; color:${color_texto};"`;
-                }
-            }
-
-            celdas_html += `<td class="${clases}" ${estilo_celda}${descripcion_celda ? ` aria-label="${valor}. ${descripcion_celda}" title="${descripcion_celda}"` : ""}>${valor}</td>`;
         }
 
         const clase_fila = [
@@ -679,19 +707,19 @@ function renderizar_tabla_matriz(
 
     return `
         <div
-            class="matrix-scroll matrix-scroll-${tamano}"
+            class="matrix-scroll matrix-scroll-small"
             tabindex="0"
             role="region"
             aria-label="Matriz de ${cantidad} por ${cantidad}; desplázate para recorrer sus datos"
         >
-            <table class="matrix matrix-${tamano}">
+            <table class="matrix matrix-small">
                 ${encabezado_tabla}
                 <tbody>${filas_html}</tbody>
             </table>
         </div>`;
 }
 
-// Convierte un color hexadecimal para resaltar bloques de la matriz.
+// Convierte un color hexadecimal para usarlo con transparencia.
 function hexadecimal_a_rgba(hexadecimal, opacidad) {
     const rojo = parseInt(hexadecimal.slice(1, 3), 16);
     const verde = parseInt(hexadecimal.slice(3, 5), 16);
@@ -740,11 +768,10 @@ function renderizar_pantalla_configuracion() {
                         <button class="btn btn-primary start-button" data-action="start">
                             <span>Explorar mi red</span><span class="button-arrow">↗</span>
                         </button>
-                        <div class="privacy-note"><span>✳</span> Sin cuentas. Solo curiosidad.</div>
                     </div>
 
                     <div class="preview-card">
-                        <div class="preview-heading"><span>VISTA PREVIA</span><span class="live-indicator">EN VIVO</span></div>
+                        <div class="preview-heading"><span>VISTA PREVIA</span></div>
                         <div class="preview-box">
                             ${renderizar_grafo({
                                 n,
@@ -759,7 +786,7 @@ function renderizar_pantalla_configuracion() {
         </section>`;
 }
 
-// Reutiliza el grafo de muestra hasta que cambie la cantidad de nodos.
+// Conserva el grafo de muestra mientras no cambie su tamaño.
 function obtener_datos_previsualizacion(n) {
     if (
         cache_previsualizacion.matriz &&
@@ -779,6 +806,7 @@ function obtener_datos_previsualizacion(n) {
     return cache_previsualizacion;
 }
 
+// Calcula el porcentaje del control de cantidad de nodos.
 function calcular_porcentaje_red(cantidad) {
     return (
         ((cantidad - CANTIDAD_MINIMA_USUARIOS) /
@@ -787,6 +815,7 @@ function calcular_porcentaje_red(cantidad) {
     );
 }
 
+// Prepara los datos de nodos y aristas para la vista previa.
 function crear_opciones_previsualizacion(cantidad) {
     const { matriz, mapa_colores } = obtener_datos_previsualizacion(cantidad);
     const nombres = obtener_nombres_red(cantidad);
@@ -799,7 +828,7 @@ function crear_opciones_previsualizacion(cantidad) {
     };
 }
 
-// Pantalla y validaciones para editar conexiones de forma manual.
+// Renderiza la pantalla para editar conexiones manualmente.
 function renderizar_pantalla_construccion() {
     const n = estado.n;
     const conexiones = obtener_conexiones_manuales();
@@ -848,6 +877,7 @@ function renderizar_pantalla_construccion() {
         </section>`;
 }
 
+// Explica qué nodos aislados deben conectarse para continuar.
 function obtener_mensaje_nodos_aislados(nodos_aislados) {
     if (nodos_aislados.length === 0) return "";
 
@@ -858,6 +888,7 @@ function obtener_mensaje_nodos_aislados(nodos_aislados) {
     return `${nombres} ${etiqueta} conexiones. Conecta cada nodo para continuar.`;
 }
 
+// Construye la lista de conexiones y su resumen.
 function obtener_conexiones_manuales() {
     const conexiones = [];
     for (let fila = 0; fila < estado.n; fila++) {
@@ -880,44 +911,15 @@ function obtener_conexiones_manuales() {
     };
 }
 
+// Indica el origen o destino que debe seleccionarse en el editor.
 function obtener_texto_indicacion_manual() {
     return estado.nodo_seleccionado_arista === null
         ? "Toca primero el nodo de origen y luego el nodo de destino"
         : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> es el origen · elige el destino`;
 }
 
-function actualizar_interfaz_construccion(instancia) {
-    const indicacion = document.querySelector(".hint-copy");
-    const resumen = document.querySelector(".stat-line");
-    const panel_conexiones = document.querySelector(".connections-panel");
-    if (!indicacion || !resumen || !panel_conexiones) return;
-
-    const lienzo = document.querySelector(".graph-column .network-canvas");
-    if (lienzo) {
-        const indice_grafo = Number(lienzo.dataset.networkIndex);
-        const configuracion = configuraciones_grafos[indice_grafo];
-        if (configuracion) configuracion.matriz = estado.matriz;
-    }
-
-    const conexiones = obtener_conexiones_manuales();
-    indicacion.innerHTML = obtener_texto_indicacion_manual();
-    resumen.innerHTML = `<span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
-    panel_conexiones.innerHTML = conexiones.html;
-    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
-    const mensaje_aislados = document.querySelector(
-        "[data-isolated-message]",
-    );
-    const boton_confirmar = document.querySelector(
-        '[data-action="confirm-manual"]',
-    );
-    if (mensaje_aislados) {
-        mensaje_aislados.textContent =
-            obtener_mensaje_nodos_aislados(nodos_aislados);
-        mensaje_aislados.hidden = nodos_aislados.length === 0;
-    }
-    if (boton_confirmar) {
-        boton_confirmar.disabled = nodos_aislados.length > 0;
-    }
+// Sincroniza los nodos y las aristas con la matriz del editor.
+function actualizar_grafo_manual(instancia) {
     if (!instancia) return;
 
     instancia.nodes().forEach((nodo) => {
@@ -956,7 +958,45 @@ function actualizar_interfaz_construccion(instancia) {
     aristas_deseadas.forEach((arista) => instancia.add(arista));
 }
 
-// Presenta el progreso y la explicación del paso actual del análisis.
+// Sincroniza el resumen, validación y grafo del editor manual.
+function actualizar_interfaz_construccion(instancia) {
+    const indicacion = document.querySelector(".hint-copy");
+    const resumen = document.querySelector(".stat-line");
+    const panel_conexiones = document.querySelector(".connections-panel");
+    if (!indicacion || !resumen || !panel_conexiones) return;
+
+    const lienzo = document.querySelector(".graph-column .network-canvas");
+    if (lienzo) {
+        const indice_grafo = Number(lienzo.dataset.networkIndex);
+        const configuracion = configuraciones_grafos[indice_grafo];
+        if (configuracion) configuracion.matriz = estado.matriz;
+    }
+
+    const conexiones = obtener_conexiones_manuales();
+    indicacion.innerHTML = obtener_texto_indicacion_manual();
+    resumen.innerHTML = `<span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
+    panel_conexiones.innerHTML = conexiones.html;
+
+    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
+    const mensaje_aislados = document.querySelector(
+        "[data-isolated-message]",
+    );
+    const boton_confirmar = document.querySelector(
+        '[data-action="confirm-manual"]',
+    );
+    if (mensaje_aislados) {
+        mensaje_aislados.textContent =
+            obtener_mensaje_nodos_aislados(nodos_aislados);
+        mensaje_aislados.hidden = nodos_aislados.length === 0;
+    }
+    if (boton_confirmar) {
+        boton_confirmar.disabled = nodos_aislados.length > 0;
+    }
+
+    actualizar_grafo_manual(instancia);
+}
+
+// Presenta el progreso y la explicación del paso actual.
 function renderizar_puntos_pasos() {
     const indice_paso = Math.max(estado.paso_algoritmo, 0);
     const paso = estado.pasos[indice_paso];
@@ -1030,6 +1070,7 @@ function renderizar_puntos_pasos() {
         </div>`;
 }
 
+// Prepara la matriz, los colores y las leyendas del paso actual.
 function obtener_contenido_paso_algoritmo() {
     const paso = estado.pasos[Math.max(estado.paso_algoritmo, 0)];
     const etiquetas = Array.from(
@@ -1127,6 +1168,7 @@ function obtener_contenido_paso_algoritmo() {
     };
 }
 
+// Genera los controles para avanzar o retroceder en el análisis.
 function renderizar_navegacion_algoritmo() {
     const es_presentacion_grafo = estado.paso_algoritmo === -1;
     const texto_anterior =
@@ -1143,16 +1185,25 @@ function renderizar_navegacion_algoritmo() {
     const texto_siguiente = es_presentacion_grafo
         ? "Iniciar análisis"
         : es_ultimo_paso
-          ? "Ver resultado"
+          ? "Ver resultados"
           : cambia_fase
             ? `Continuar a ${siguiente_fase.nombre}`
             : "Siguiente paso";
 
     return `
         <button class="btn btn-ghost" data-action="algo-prev" ${es_presentacion_grafo ? "hidden" : ""}>${texto_anterior}</button>
+        <div class="auto-advance-controls" ${es_ultimo_paso ? "hidden" : ""}>
+            <button class="btn btn-ghost" data-action="toggle-auto-advance" aria-pressed="${avance_automatico_activo}">${avance_automatico_activo ? "Pausar avance" : "Avance automático"}</button>
+            <div class="auto-speed-control" aria-label="Velocidad del avance automático">
+                <button class="btn btn-ghost auto-speed-button" data-action="change-auto-speed" data-direction="-1" aria-label="Reducir velocidad" ${indice_velocidad_avance_automatico === 0 ? "disabled" : ""}>−</button>
+                <span class="auto-speed-value" aria-live="polite">${VELOCIDADES_AVANCE_AUTOMATICO[indice_velocidad_avance_automatico]}×</span>
+                <button class="btn btn-ghost auto-speed-button" data-action="change-auto-speed" data-direction="1" aria-label="Aumentar velocidad" ${indice_velocidad_avance_automatico === VELOCIDADES_AVANCE_AUTOMATICO.length - 1 ? "disabled" : ""}>+</button>
+            </div>
+        </div>
         <button class="btn btn-primary" data-action="algo-next">${texto_siguiente} <span class="button-arrow">↗</span></button>`;
 }
 
+// Actualiza los colores y resaltados del grafo del análisis.
 function actualizar_colores_grafo_algoritmo(mapa_colores, paso) {
     const lienzo = document.querySelector(".algorithm-graph .network-canvas");
     if (!lienzo) return;
@@ -1222,6 +1273,7 @@ function actualizar_colores_grafo_algoritmo(mapa_colores, paso) {
     });
 }
 
+// Actualiza la pantalla del análisis y coordina sus transiciones.
 function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     const contenido = obtener_contenido_paso_algoritmo();
     const panel = document.querySelector(".algorithm-panel");
@@ -1312,7 +1364,7 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     }
 }
 
-// Compone la vista del grafo y la matriz durante el algoritmo.
+// Renderiza el grafo y la matriz del paso actual del algoritmo.
 function renderizar_pantalla_algoritmo() {
     const n = estado.n;
     const es_presentacion_grafo = estado.paso_algoritmo === -1;
@@ -1360,7 +1412,7 @@ function renderizar_pantalla_algoritmo() {
   </section>`;
 }
 
-// Muestra cada componente con su color e integrantes.
+// Renderiza las tarjetas con los nodos de cada componente.
 function renderizar_tarjetas_componentes(componentes = estado.componentes) {
     return componentes
         .map((componente, indice_componente) => {
@@ -1387,7 +1439,7 @@ function renderizar_tarjetas_componentes(componentes = estado.componentes) {
         .join("");
 }
 
-// Prepara las cuatro matrices que se consultan en el resultado.
+// Obtiene las matrices presentadas en el análisis final.
 function obtener_etapas_analisis_original() {
     const indices = Array.from({ length: estado.n }, (_, indice) => indice);
     const paso_caminos = estado.pasos.find(
@@ -1444,6 +1496,7 @@ function obtener_etapas_analisis_original() {
     ];
 }
 
+// Genera las pestañas para elegir una etapa del análisis final.
 function renderizar_pestanas_analisis_original(indice_activo, etapas) {
     return etapas
         .map(
@@ -1466,6 +1519,7 @@ function renderizar_pestanas_analisis_original(indice_activo, etapas) {
         .join("");
 }
 
+// Renderiza la descripción y matriz de una etapa seleccionada.
 function renderizar_etapa_analisis_original(indice, etapas) {
     const etapa = etapas[indice];
     if (!etapa) {
@@ -1524,13 +1578,15 @@ function renderizar_etapa_analisis_original(indice, etapas) {
         </div>`;
 }
 
+// Actualiza el grafo original según la etapa seleccionada.
 function actualizar_grafo_original_por_etapa(indice, etapas) {
     const lienzo = document.querySelector(
         ".result-original-layout .network-canvas",
     );
     if (!lienzo) return;
 
-    const instancia = instancias_grafos[Number(lienzo.dataset.networkIndex)];
+    const indice_grafo = Number(lienzo.dataset.networkIndex);
+    const instancia = instancias_grafos[indice_grafo];
     if (!instancia) return;
 
     const etapa = etapas[indice];
@@ -1544,7 +1600,7 @@ function actualizar_grafo_original_por_etapa(indice, etapas) {
         ? crear_mapa_colores_componentes(componentes_ordenados, estado.n)
         : null;
     const opciones = {
-        ...configuraciones_grafos[Number(lienzo.dataset.networkIndex)],
+        ...configuraciones_grafos[indice_grafo],
         matriz: componentes
             ? crear_matriz_ciclos_componentes(componentes_ordenados, estado.n)
             : estado.matriz,
@@ -1552,7 +1608,6 @@ function actualizar_grafo_original_por_etapa(indice, etapas) {
         componentes: componentes_ordenados,
         organizar_componentes: Boolean(componentes),
     };
-    const indice_grafo = Number(lienzo.dataset.networkIndex);
     configuraciones_grafos[indice_grafo] = opciones;
 
     instancia.stop();
@@ -1571,16 +1626,6 @@ function actualizar_grafo_original_por_etapa(indice, etapas) {
             mapa_colores?.[indice_nodo] ?? color_nodo_neutro,
         );
     });
-
-    const leyenda = document.querySelector(
-        ".original-graph-component-legend",
-    );
-    if (leyenda) leyenda.hidden = !componentes;
-    if (leyenda) {
-        leyenda.textContent = componentes
-            ? "Vista simplificada: un ciclo de alcance por componente. Los nodos aislados representan componentes de un solo nodo."
-            : "";
-    }
 
     const encabezado_grafo = document.querySelector(
         ".result-original-heading h2",
@@ -1610,6 +1655,7 @@ function actualizar_grafo_original_por_etapa(indice, etapas) {
     ejecutar_distribucion(instancia, lienzo, opciones);
 }
 
+// Cambia la etapa visible y sincroniza los controles relacionados.
 function actualizar_etapa_analisis_original(indice) {
     const etapas = obtener_etapas_analisis_original();
     if (!Number.isInteger(indice) || indice < 0 || indice >= etapas.length) {
@@ -1650,7 +1696,7 @@ function actualizar_etapa_analisis_original(indice) {
     boton_siguiente.disabled = indice === etapas.length - 1;
 }
 
-// Resumen final y panel desplegable con el proceso completo.
+// Renderiza el resultado y el análisis detallado de la red.
 function renderizar_pantalla_resultado() {
     const n = estado.n;
     const etapas_analisis = obtener_etapas_analisis_original();
@@ -1671,9 +1717,6 @@ function renderizar_pantalla_resultado() {
         estado.componentes,
         n,
     );
-    const cantidad_aristas = estado.matriz
-        .flat()
-        .reduce((total, valor) => total + valor, 0);
     const tarjetas_componentes =
         renderizar_tarjetas_componentes(estado.componentes);
     const etiqueta_componentes =
@@ -1690,7 +1733,7 @@ function renderizar_pantalla_resultado() {
     <div class="panel workspace-panel">
       <div class="result-summary">
         <span class="big-n">${estado.componentes.length}</span>
-        <span class="big-label">${etiqueta_componentes}<br /><b>${n} nodos · ${cantidad_aristas} aristas dirigidas</b></span>
+        <span class="big-label">${etiqueta_componentes}</span>
       </div>
       <p class="scc-definition">Cada componente es un conjunto maximal de nodos cuyos integrantes pueden alcanzarse entre sí siguiendo la dirección de las aristas.</p>
 
@@ -1735,9 +1778,6 @@ function renderizar_pantalla_resultado() {
                 matriz: estado.matriz,
                 nombres: estado.nombres,
             })}
-            <p class="original-graph-component-legend" hidden>
-              Vista simplificada: un ciclo de alcance por componente. Los nodos aislados representan componentes de un solo nodo.
-            </p>
           </div>
           <section class="original-analysis" aria-label="Proceso de análisis">
             <div class="original-analysis-heading">
@@ -1787,7 +1827,7 @@ function renderizar_pantalla_resultado() {
   </section>`;
 }
 
-// Monta la pantalla actual y vuelve a inicializar sus grafos.
+// Monta la pantalla activa y vuelve a inicializar sus grafos.
 function renderizar() {
     const app = document.getElementById("app");
     const renderizar_pantalla = renderizadores_pantalla[estado.pantalla];
@@ -1811,7 +1851,7 @@ function renderizar() {
     }
 }
 
-// Inicia la creación manual o aleatoria según la opción seleccionada.
+// Inicia la creación manual o aleatoria elegida por el usuario.
 function iniciar_exploracion() {
     estado.nombres = obtener_nombres_red(estado.n);
 
@@ -1829,7 +1869,9 @@ function iniciar_exploracion() {
     renderizar();
 }
 
+// Reinicia la exploración conservando el tamaño y modo elegidos.
 function reiniciar_exploracion() {
+    detener_avance_automatico();
     const { n, modo } = estado;
     estado = crear_estado_inicial();
     estado.n = n;
@@ -1837,6 +1879,7 @@ function reiniciar_exploracion() {
     renderizar();
 }
 
+// Actualiza la opción activa de creación de la red.
 function cambiar_modo(boton) {
     estado.modo = boton.dataset.value;
     document.querySelectorAll('[data-action="set-mode"]').forEach((opcion) => {
@@ -1846,6 +1889,7 @@ function cambiar_modo(boton) {
     });
 }
 
+// Elimina una arista válida del grafo manual.
 function quitar_conexion(boton) {
     const origen = Number(boton.dataset.i);
     const destino = Number(boton.dataset.j);
@@ -1863,6 +1907,7 @@ function quitar_conexion(boton) {
     actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
 }
 
+// Valida la red manual e inicia el análisis si es válida.
 function confirmar_red_manual() {
     const nodos_aislados = obtener_nodos_aislados(estado.matriz);
     if (nodos_aislados.length > 0) {
@@ -1883,7 +1928,7 @@ function confirmar_red_manual() {
     renderizar();
 }
 
-// Avanza al siguiente paso o abre el resultado al terminar.
+// Avanza un paso o abre el resultado al llegar al final.
 function avanzar_paso_algoritmo() {
     if (estado.paso_algoritmo === -1) {
         estado.paso_algoritmo = 0;
@@ -1901,7 +1946,171 @@ function avanzar_paso_algoritmo() {
     renderizar();
 }
 
-// Centraliza acciones de controles generados dinámicamente.
+// Cancela el temporizador y deja inactivo el avance automático.
+function detener_avance_automatico() {
+    if (temporizador_avance_automatico !== null) {
+        window.clearTimeout(temporizador_avance_automatico);
+        temporizador_avance_automatico = null;
+    }
+    avance_automatico_activo = false;
+
+    const boton = document.querySelector(
+        '[data-action="toggle-auto-advance"]',
+    );
+    if (boton) {
+        boton.textContent = "Avance automático";
+        boton.setAttribute("aria-pressed", "false");
+    }
+}
+
+// Programa el siguiente paso según la velocidad elegida.
+function programar_avance_automatico() {
+    const intervalo =
+        INTERVALO_AVANCE_AUTOMATICO /
+        VELOCIDADES_AVANCE_AUTOMATICO[indice_velocidad_avance_automatico];
+    temporizador_avance_automatico = window.setTimeout(() => {
+        temporizador_avance_automatico = null;
+        if (
+            !avance_automatico_activo ||
+            estado.pantalla !== "algorithm" ||
+            estado.paso_algoritmo >= estado.pasos.length - 1
+        ) {
+            detener_avance_automatico();
+            return;
+        }
+
+        avanzar_paso_algoritmo();
+        if (estado.paso_algoritmo >= estado.pasos.length - 1) {
+            detener_avance_automatico();
+            return;
+        }
+
+        programar_avance_automatico();
+    }, intervalo);
+}
+
+// Cambia la velocidad y reinicia el temporizador si está avanzando.
+function cambiar_velocidad_avance_automatico(boton) {
+    const siguiente_indice =
+        indice_velocidad_avance_automatico + Number(boton.dataset.direction);
+    if (
+        siguiente_indice < 0 ||
+        siguiente_indice >= VELOCIDADES_AVANCE_AUTOMATICO.length
+    ) {
+        return;
+    }
+
+    indice_velocidad_avance_automatico = siguiente_indice;
+    const valor_velocidad = document.querySelector(".auto-speed-value");
+    if (valor_velocidad) {
+        valor_velocidad.textContent = `${VELOCIDADES_AVANCE_AUTOMATICO[siguiente_indice]}×`;
+    }
+    document
+        .querySelectorAll('[data-action="change-auto-speed"]')
+        .forEach((control) => {
+            const direccion = Number(control.dataset.direction);
+            control.disabled =
+                (direccion < 0 && siguiente_indice === 0) ||
+                (direccion > 0 &&
+                    siguiente_indice ===
+                        VELOCIDADES_AVANCE_AUTOMATICO.length - 1);
+        });
+
+    if (avance_automatico_activo) {
+        if (temporizador_avance_automatico !== null) {
+            window.clearTimeout(temporizador_avance_automatico);
+        }
+        programar_avance_automatico();
+    }
+}
+
+// Inicia o pausa el avance automático del análisis.
+function alternar_avance_automatico() {
+    if (avance_automatico_activo) {
+        detener_avance_automatico();
+        return;
+    }
+
+    if (
+        estado.pantalla !== "algorithm" ||
+        estado.paso_algoritmo >= estado.pasos.length - 1
+    ) {
+        return;
+    }
+
+    avance_automatico_activo = true;
+    const boton = document.querySelector(
+        '[data-action="toggle-auto-advance"]',
+    );
+    if (boton) {
+        boton.textContent = "Pausar avance";
+        boton.setAttribute("aria-pressed", "true");
+    }
+    programar_avance_automatico();
+}
+
+// Borra todas las aristas y actualiza el editor manual.
+function limpiar_conexiones_manuales() {
+    estado.matriz = crear_matriz_vacia(estado.n);
+    estado.nodo_seleccionado_arista = null;
+    actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
+}
+
+// Abre o cierra el grafo original y prepara su vista al mostrarlo.
+function alternar_grafo_original(boton) {
+    const caja = document.getElementById("original-graph-box");
+    if (!caja) return;
+
+    const esta_abierta = boton.getAttribute("aria-expanded") === "true";
+    boton.setAttribute("aria-expanded", String(!esta_abierta));
+    boton.textContent = esta_abierta
+        ? "Ver grafo original"
+        : "Ocultar grafo original";
+    caja.classList.toggle("is-open", !esta_abierta);
+    caja.setAttribute("aria-hidden", String(esta_abierta));
+    caja.inert = esta_abierta;
+
+    if (esta_abierta) return;
+
+    const movimiento_reducido = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+    ).matches;
+    window.setTimeout(
+        () => {
+            if (!caja.classList.contains("is-open")) return;
+            caja.scrollIntoView({
+                behavior: movimiento_reducido ? "auto" : "smooth",
+                block: "nearest",
+            });
+            const lienzo = caja.querySelector(".network-canvas");
+            if (!lienzo) return;
+            const instancia =
+                instancias_grafos[Number(lienzo.dataset.networkIndex)];
+            if (!instancia) return;
+            instancia.resize();
+            instancia.fit(instancia.elements(), 42);
+        },
+        movimiento_reducido ? 0 : 360,
+    );
+}
+
+// Retrocede un paso y pausa cualquier avance automático activo.
+function retroceder_paso_algoritmo() {
+    detener_avance_automatico();
+    if (estado.paso_algoritmo < 0) return;
+
+    estado.paso_algoritmo =
+        estado.paso_algoritmo === 0 ? -1 : estado.paso_algoritmo - 1;
+    actualizar_pantalla_algoritmo(estado.paso_algoritmo === -1);
+}
+
+// Avanza manualmente y pausa el temporizador automático.
+function avanzar_paso_manualmente() {
+    detener_avance_automatico();
+    avanzar_paso_algoritmo();
+}
+
+// Ejecuta la acción indicada por cada control de la interfaz.
 const acciones_interfaz = {
     "zoom-in": (boton) => ajustar_vista_grafo("zoom-in", boton),
     "zoom-out": (boton) => ajustar_vista_grafo("zoom-out", boton),
@@ -1909,50 +2118,9 @@ const acciones_interfaz = {
     "set-mode": cambiar_modo,
     start: iniciar_exploracion,
     "remove-edge": quitar_conexion,
-    "clear-edges": () => {
-        estado.matriz = crear_matriz_vacia(estado.n);
-        estado.nodo_seleccionado_arista = null;
-        actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
-    },
+    "clear-edges": limpiar_conexiones_manuales,
     "confirm-manual": confirmar_red_manual,
-    "toggle-result-graph": (boton) => {
-        const caja = document.getElementById("original-graph-box");
-        if (!caja) return;
-
-        const esta_abierta = boton.getAttribute("aria-expanded") === "true";
-        boton.setAttribute("aria-expanded", String(!esta_abierta));
-        boton.textContent = esta_abierta
-            ? "Ver grafo original"
-            : "Ocultar grafo original";
-        caja.classList.toggle("is-open", !esta_abierta);
-        caja.setAttribute("aria-hidden", String(esta_abierta));
-        caja.inert = esta_abierta;
-
-        if (!esta_abierta) {
-            const movimiento_reducido = window.matchMedia(
-                "(prefers-reduced-motion: reduce)",
-            ).matches;
-            window.setTimeout(
-                () => {
-                    if (!caja.classList.contains("is-open")) return;
-                    caja.scrollIntoView({
-                        behavior: movimiento_reducido ? "auto" : "smooth",
-                        block: "nearest",
-                    });
-                    const lienzo = caja.querySelector(".network-canvas");
-                    if (!lienzo) return;
-                    const instancia =
-                        instancias_grafos[
-                            Number(lienzo.dataset.networkIndex)
-                        ];
-                    if (!instancia) return;
-                    instancia.resize();
-                    instancia.fit(instancia.elements(), 42);
-                },
-                movimiento_reducido ? 0 : 360,
-            );
-        }
-    },
+    "toggle-result-graph": alternar_grafo_original,
     "select-original-step": (boton) => {
         actualizar_etapa_analisis_original(Number(boton.dataset.step));
     },
@@ -1961,13 +2129,10 @@ const acciones_interfaz = {
             estado.paso_analisis_original + Number(boton.dataset.direction),
         );
     },
-    "algo-prev": () => {
-        if (estado.paso_algoritmo < 0) return;
-        estado.paso_algoritmo =
-            estado.paso_algoritmo === 0 ? -1 : estado.paso_algoritmo - 1;
-        actualizar_pantalla_algoritmo(estado.paso_algoritmo === -1);
-    },
-    "algo-next": avanzar_paso_algoritmo,
+    "algo-prev": retroceder_paso_algoritmo,
+    "algo-next": avanzar_paso_manualmente,
+    "toggle-auto-advance": alternar_avance_automatico,
+    "change-auto-speed": cambiar_velocidad_avance_automatico,
     restart: reiniciar_exploracion,
 };
 
@@ -2024,6 +2189,7 @@ document.addEventListener("keydown", (evento) => {
         ?.focus();
 });
 
+// Obtiene la instancia Cytoscape usada por el editor manual.
 function obtener_instancia_grafo_manual() {
     const lienzo = document.querySelector(".graph-column .network-canvas");
     return lienzo

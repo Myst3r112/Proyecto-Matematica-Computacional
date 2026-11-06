@@ -24,7 +24,7 @@
     const color_nodo_neutro = "#D8F1FA";
     const color_arista_neutra = "#3A4A66";
 
-    // Validación y creación de matrices de adyacencia.
+    // Verifica que la cantidad de nodos esté dentro del rango admitido.
     function validar_cantidad(cantidad) {
         if (
             !Number.isInteger(cantidad) ||
@@ -37,6 +37,7 @@
         }
     }
 
+    // Crea una matriz cuadrada inicializada sin aristas.
     function crear_matriz_vacia(cantidad) {
         validar_cantidad(cantidad);
         return Array.from({ length: cantidad }, () =>
@@ -44,11 +45,13 @@
         );
     }
 
+    // Devuelve los nombres disponibles para la cantidad solicitada.
     function obtener_nombres_red(cantidad) {
         validar_cantidad(cantidad);
         return nombres_disponibles.slice(0, cantidad);
     }
 
+    // Genera aristas aleatorias y evita que haya nodos aislados.
     function generar_matriz_aleatoria(cantidad) {
         validar_cantidad(cantidad);
         const matriz = crear_matriz_vacia(cantidad);
@@ -85,7 +88,7 @@
         return matriz;
     }
 
-    // Ordena filas y columnas para hacer visibles los bloques de componentes.
+    // Reordena una matriz según los índices de filas y columnas.
     function reordenar_matriz(matriz, orden_filas, orden_columnas) {
         return orden_filas.map((indice_fila) =>
             orden_columnas.map(
@@ -94,15 +97,18 @@
         );
     }
 
+    // Completa un orden parcial con los índices que faltan.
     function crear_orden_parcial(orden, cantidad_ordenada) {
         const ordenados = orden.slice(0, cantidad_ordenada);
+        const indices_ordenados = new Set(ordenados);
         const pendientes = Array.from({ length: orden.length }, (_, indice) =>
             indice,
-        ).filter((indice) => !ordenados.includes(indice));
+        ).filter((indice) => !indices_ordenados.has(indice));
 
         return [...ordenados, ...pendientes];
     }
 
+    // Ordena las filas por cantidad y patrón de valores alcanzables.
     function crear_orden_filas(matriz_caminos) {
         return matriz_caminos
             .map((fila, indice) => ({
@@ -140,7 +146,7 @@
             .map((fila) => fila.indice);
     }
 
-    // La alcanzabilidad mutua agrupa los nodos de cada componente.
+    // Agrupa los nodos que se alcanzan mutuamente.
     function detectar_componentes_fuertemente_conexas(matriz_caminos) {
         const pendientes = new Set(
             Array.from({ length: matriz_caminos.length }, (_, indice) => indice),
@@ -166,7 +172,7 @@
         );
     }
 
-    // Conserva una copia de matriz para que cada paso sea independiente.
+    // Registra los pasos con una copia de la matriz en el estado actual.
     function crear_registrador_pasos(pasos, matriz_caminos, habilitado) {
         return (datos) => {
             if (!habilitado) return;
@@ -180,7 +186,7 @@
         };
     }
 
-    // Helpers del recorrido en profundidad y la reconstrucción de caminos.
+    // Reconstruye un camino usando el mapa de predecesores del recorrido.
     function reconstruir_camino(destino, origen, predecesores) {
         const camino = [destino];
         let anterior = destino;
@@ -193,6 +199,7 @@
         return camino;
     }
 
+    // Calcula y registra los caminos alcanzables desde un nodo de origen.
     function registrar_caminos_desde_origen(
         matriz,
         matriz_caminos,
@@ -244,6 +251,7 @@
         }
     }
 
+    // Registra los cambios graduales al ordenar filas y columnas.
     function registrar_pasos_ordenamiento(
         matriz_caminos,
         orden,
@@ -306,6 +314,7 @@
         }
     }
 
+    // Registra cada componente a medida que se revela en la matriz.
     function registrar_pasos_componentes(
         matriz_caminos,
         orden,
@@ -331,6 +340,7 @@
         });
     }
 
+    // Ordena los componentes según su posición en las filas reordenadas.
     function ordenar_componentes_por_filas(componentes, orden) {
         const posicion_nodo = new Map(
             orden.map((nodo, indice) => [nodo, indice]),
@@ -347,7 +357,7 @@
         );
     }
 
-    // Coordina el análisis y devuelve componentes y pasos de visualización.
+    // Calcula las componentes y prepara los pasos de la visualización.
     function calcular_datos_algoritmo(matriz, registrar_pasos = true) {
         validar_matriz(matriz);
 
@@ -415,7 +425,7 @@
         return { componentes, pasos };
     }
 
-    // Rechaza matrices que no cumplen el formato esperado por el algoritmo.
+    // Valida dimensiones, valores y ausencia de lazos en la matriz.
     function validar_matriz(matriz) {
         validar_cantidad(Array.isArray(matriz) ? matriz.length : NaN);
         const cantidad = matriz.length;
@@ -434,7 +444,7 @@
         });
     }
 
-    // Asigna un color estable a cada nodo según su componente.
+    // Asigna el color de su componente a cada nodo.
     function crear_mapa_colores_componentes(componentes, cantidad_nodos) {
         const mapa_colores = new Array(cantidad_nodos).fill(null);
         componentes.forEach((componente, indice_comunidad) => {
@@ -446,10 +456,12 @@
         return mapa_colores;
     }
 
+    // Obtiene el color estable correspondiente al índice de componente.
     function obtener_color_componente(indice) {
         return colores_componentes[indice % colores_componentes.length];
     }
 
+    // Convierte el matiz de una componente en un color hexadecimal.
     function generar_color_componente(indice) {
         const matiz = (indice * 137.508) % 360;
         const saturacion = 0.66 + (indice % 3) * 0.06;

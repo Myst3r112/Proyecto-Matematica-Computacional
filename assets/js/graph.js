@@ -1,5 +1,6 @@
-/* Cálculo de componentes fuertemente conexas y colores de la red */
+/* Cálculos del grafo y colores compartidos con la interfaz. */
 (() => {
+    // Valores permitidos y paleta usados en todas las redes.
     const nombres_disponibles = [
         "Amir",
         "Wilber",
@@ -23,6 +24,7 @@
     const color_nodo_neutro = "#D8F1FA";
     const color_arista_neutra = "#3A4A66";
 
+    // Validación y creación de matrices de adyacencia.
     function validar_cantidad(cantidad) {
         if (
             !Number.isInteger(cantidad) ||
@@ -83,6 +85,7 @@
         return matriz;
     }
 
+    // Ordena filas y columnas para hacer visibles los bloques de componentes.
     function reordenar_matriz(matriz, orden_filas, orden_columnas) {
         return orden_filas.map((indice_fila) =>
             orden_columnas.map(
@@ -137,6 +140,7 @@
             .map((fila) => fila.indice);
     }
 
+    // La alcanzabilidad mutua agrupa los nodos de cada componente.
     function detectar_componentes_fuertemente_conexas(matriz_caminos) {
         const pendientes = new Set(
             Array.from({ length: matriz_caminos.length }, (_, indice) => indice),
@@ -162,6 +166,7 @@
         );
     }
 
+    // Conserva una copia de matriz para que cada paso sea independiente.
     function crear_registrador_pasos(pasos, matriz_caminos, habilitado) {
         return (datos) => {
             if (!habilitado) return;
@@ -175,6 +180,7 @@
         };
     }
 
+    // Helpers del recorrido en profundidad y la reconstrucción de caminos.
     function reconstruir_camino(destino, origen, predecesores) {
         const camino = [destino];
         let anterior = destino;
@@ -193,6 +199,7 @@
         origen,
         registrar_paso,
     ) {
+        // Un DFS desde cada origen completa la matriz de alcanzabilidad.
         const visitados = new Set([origen]);
         const pendientes = [origen];
         const predecesores = new Map();
@@ -340,6 +347,7 @@
         );
     }
 
+    // Coordina el análisis y devuelve componentes y pasos de visualización.
     function calcular_datos_algoritmo(matriz, registrar_pasos = true) {
         validar_matriz(matriz);
 
@@ -407,6 +415,7 @@
         return { componentes, pasos };
     }
 
+    // Rechaza matrices que no cumplen el formato esperado por el algoritmo.
     function validar_matriz(matriz) {
         validar_cantidad(Array.isArray(matriz) ? matriz.length : NaN);
         const cantidad = matriz.length;
@@ -425,6 +434,7 @@
         });
     }
 
+    // Asigna un color estable a cada nodo según su componente.
     function crear_mapa_colores_componentes(componentes, cantidad_nodos) {
         const mapa_colores = new Array(cantidad_nodos).fill(null);
         componentes.forEach((componente, indice_comunidad) => {

@@ -11,6 +11,7 @@ const {
     obtener_color_componente,
 } = window.CoonectowskiGraph;
 
+// Estado de navegación, grafos activos y datos reutilizados por la vista previa.
 let estado = null;
 let configuraciones_grafos = [];
 let instancias_grafos = [];
@@ -60,6 +61,7 @@ function ejecutar_algoritmo() {
     estado.pasos = pasos;
 }
 
+// Helpers para preparar la estructura y los colores de cada componente.
 function obtener_nodos_aislados(matriz) {
     const tiene_conexion = new Array(matriz.length).fill(false);
 
@@ -123,6 +125,7 @@ function crear_mapa_componentes_por_nodo(
     return componente_por_nodo;
 }
 
+// Genera los contenedores y elementos usados para dibujar cada grafo.
 function renderizar_grafo(opciones) {
     const indice = configuraciones_grafos.push(opciones) - 1;
     return `
@@ -262,6 +265,7 @@ function crear_opciones_distribucion(posiciones, movimiento_reducido) {
 
 function ejecutar_distribucion(instancia, lienzo, opciones) {
     const indice = Number(lienzo.dataset.networkIndex);
+    // Evita que layouts anteriores sigan animándose sobre el mismo grafo.
     distribuciones_grafos[indice]?.stop();
 
     const es_previsualizacion = opciones.previsualizacion === true;
@@ -551,6 +555,7 @@ function ajustar_vista_grafo(accion, control) {
     });
 }
 
+// Mantiene los grafos ajustados al cambiar el tamaño de la ventana.
 window.addEventListener("resize", () => {
     window.requestAnimationFrame(() => {
         instancias_grafos.forEach((instancia) => instancia.resize());
@@ -686,6 +691,7 @@ function renderizar_tabla_matriz(
         </div>`;
 }
 
+// Convierte un color hexadecimal para resaltar bloques de la matriz.
 function hexadecimal_a_rgba(hexadecimal, opacidad) {
     const rojo = parseInt(hexadecimal.slice(1, 3), 16);
     const verde = parseInt(hexadecimal.slice(3, 5), 16);
@@ -694,6 +700,7 @@ function hexadecimal_a_rgba(hexadecimal, opacidad) {
     return `rgba(${rojo},${verde},${azul},${opacidad})`;
 }
 
+// Pantalla inicial, controles de creación y vista previa del grafo.
 function renderizar_pantalla_configuracion() {
     const n = estado.n;
     const porcentaje_relleno = calcular_porcentaje_red(n);
@@ -752,6 +759,7 @@ function renderizar_pantalla_configuracion() {
         </section>`;
 }
 
+// Reutiliza el grafo de muestra hasta que cambie la cantidad de nodos.
 function obtener_datos_previsualizacion(n) {
     if (
         cache_previsualizacion.matriz &&
@@ -791,6 +799,7 @@ function crear_opciones_previsualizacion(cantidad) {
     };
 }
 
+// Pantalla y validaciones para editar conexiones de forma manual.
 function renderizar_pantalla_construccion() {
     const n = estado.n;
     const conexiones = obtener_conexiones_manuales();
@@ -947,6 +956,7 @@ function actualizar_interfaz_construccion(instancia) {
     aristas_deseadas.forEach((arista) => instancia.add(arista));
 }
 
+// Presenta el progreso y la explicación del paso actual del análisis.
 function renderizar_puntos_pasos() {
     const indice_paso = Math.max(estado.paso_algoritmo, 0);
     const paso = estado.pasos[indice_paso];
@@ -1302,6 +1312,7 @@ function actualizar_pantalla_algoritmo(ajustar_grafo = false) {
     }
 }
 
+// Compone la vista del grafo y la matriz durante el algoritmo.
 function renderizar_pantalla_algoritmo() {
     const n = estado.n;
     const es_presentacion_grafo = estado.paso_algoritmo === -1;
@@ -1349,6 +1360,7 @@ function renderizar_pantalla_algoritmo() {
   </section>`;
 }
 
+// Muestra cada componente con su color e integrantes.
 function renderizar_tarjetas_componentes(componentes = estado.componentes) {
     return componentes
         .map((componente, indice_componente) => {
@@ -1375,6 +1387,7 @@ function renderizar_tarjetas_componentes(componentes = estado.componentes) {
         .join("");
 }
 
+// Prepara las cuatro matrices que se consultan en el resultado.
 function obtener_etapas_analisis_original() {
     const indices = Array.from({ length: estado.n }, (_, indice) => indice);
     const paso_caminos = estado.pasos.find(
@@ -1625,6 +1638,7 @@ function actualizar_etapa_analisis_original(indice) {
     if (!contenido || !boton_anterior || !boton_siguiente) return;
 
     contenido.innerHTML = renderizar_etapa_analisis_original(indice, etapas);
+    // Solo el cambio entre las etapas 3 y 4 reorganiza el grafo.
     if (
         (indice_anterior === 2 && indice === 3) ||
         (indice_anterior === 3 && indice === 2)
@@ -1636,6 +1650,7 @@ function actualizar_etapa_analisis_original(indice) {
     boton_siguiente.disabled = indice === etapas.length - 1;
 }
 
+// Resumen final y panel desplegable con el proceso completo.
 function renderizar_pantalla_resultado() {
     const n = estado.n;
     const etapas_analisis = obtener_etapas_analisis_original();
@@ -1772,6 +1787,7 @@ function renderizar_pantalla_resultado() {
   </section>`;
 }
 
+// Monta la pantalla actual y vuelve a inicializar sus grafos.
 function renderizar() {
     const app = document.getElementById("app");
     const renderizar_pantalla = renderizadores_pantalla[estado.pantalla];
@@ -1795,6 +1811,7 @@ function renderizar() {
     }
 }
 
+// Inicia la creación manual o aleatoria según la opción seleccionada.
 function iniciar_exploracion() {
     estado.nombres = obtener_nombres_red(estado.n);
 
@@ -1866,6 +1883,7 @@ function confirmar_red_manual() {
     renderizar();
 }
 
+// Avanza al siguiente paso o abre el resultado al terminar.
 function avanzar_paso_algoritmo() {
     if (estado.paso_algoritmo === -1) {
         estado.paso_algoritmo = 0;
@@ -1883,6 +1901,7 @@ function avanzar_paso_algoritmo() {
     renderizar();
 }
 
+// Centraliza acciones de controles generados dinámicamente.
 const acciones_interfaz = {
     "zoom-in": (boton) => ajustar_vista_grafo("zoom-in", boton),
     "zoom-out": (boton) => ajustar_vista_grafo("zoom-out", boton),
@@ -1952,6 +1971,7 @@ const acciones_interfaz = {
     restart: reiniciar_exploracion,
 };
 
+// Delegación de clics para mantener un único manejador de acciones.
 document.addEventListener("click", (evento) => {
     if (!(evento.target instanceof Element)) return;
 
@@ -1970,6 +1990,7 @@ document.addEventListener("click", (evento) => {
     acciones_interfaz[boton.dataset.action](boton);
 });
 
+// Permite recorrer las pestañas del resultado con el teclado.
 document.addEventListener("keydown", (evento) => {
     if (
         !(evento.target instanceof Element) ||
@@ -2010,6 +2031,7 @@ function obtener_instancia_grafo_manual() {
         : null;
 }
 
+// Alterna origen, destino y existencia de una arista en el editor manual.
 function seleccionar_nodo_red(indice, instancia) {
     if (!instancia) return;
 
@@ -2025,6 +2047,7 @@ function seleccionar_nodo_red(indice, instancia) {
     actualizar_interfaz_construccion(instancia);
 }
 
+// Actualiza cantidad, relleno del control y grafo de vista previa.
 document.addEventListener("input", (evento) => {
     if (
         !(evento.target instanceof HTMLInputElement) ||
@@ -2048,6 +2071,7 @@ document.addEventListener("input", (evento) => {
     actualizar_vista_previa(cantidad);
 });
 
+// Crea el estado inicial y monta la interfaz.
 estado = crear_estado_inicial();
 renderizar();
 

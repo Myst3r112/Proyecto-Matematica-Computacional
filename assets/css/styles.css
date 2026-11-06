@@ -18,6 +18,8 @@
     --display: "Space Grotesk", var(--sans);
     --mono: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", monospace;
 }
+
+/* Valores base, normalización y accesibilidad del tema. */
 * {
     box-sizing: border-box;
 }
@@ -73,6 +75,7 @@ button {
     border-radius: 6px;
 }
 
+/* Marca superior y contenedor general de las pantallas. */
 .topbar {
     display: flex;
     align-items: center;
@@ -186,6 +189,7 @@ p.section-sub {
     line-height: 1.45;
 }
 
+/* Distribución de controles y vista previa del grafo. */
 .config-grid {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
@@ -396,6 +400,7 @@ svg.graph {
     font-weight: 700;
     font-size: 13px;
 }
+/* Elementos visuales para el grafo y sus conexiones manuales. */
 .edge-chip-row {
     display: flex;
     flex-wrap: wrap;
@@ -467,6 +472,7 @@ svg.graph {
     font-family: var(--mono);
 }
 
+/* Navegación del algoritmo y resaltado de matrices. */
 .steps-nav {
     display: flex;
     gap: 8px;
@@ -650,6 +656,7 @@ table.matrix td.diag {
     border: 1px solid var(--border-soft);
 }
 
+/* Paleta clara y dimensiones del rediseño visual. */
 :root {
     --bg: #f0f6f8;
     --bg-elev: #fffefa;
@@ -802,6 +809,7 @@ main {
     }
 }
 
+/* Componentes de inicio, selección de modo y acciones principales. */
 .hero-copy {
     max-width: 620px;
     margin: 8px auto 34px;
@@ -1161,6 +1169,7 @@ button.pill.active {
     padding: 9px 5px 2px;
 }
 
+/* Canvas Cytoscape, controles de zoom y estados de interacción. */
 .network-frame {
     position: relative;
     width: 100%;
@@ -1344,6 +1353,7 @@ button.pill.active {
     padding: clamp(17px, 3vw, 32px);
 }
 
+/* Editor manual: indicaciones, grafo y lista de aristas. */
 .build-grid {
     grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.7fr);
     gap: clamp(16px, 3vw, 31px);
@@ -1690,6 +1700,7 @@ svg.graph g[data-action="pick-node"] circle {
         gap 0.42s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+/* Progreso, fases y transiciones de la explicación paso a paso. */
 .algorithm-progress {
     display: grid;
     width: 100%;
@@ -1881,6 +1892,7 @@ svg.graph g[data-action="pick-node"] circle {
     font-weight: 700;
 }
 
+/* Tabla de matriz, encabezados, bloques y marcas de alcance. */
 .matrix-scroll {
     max-width: 100%;
     max-height: min(62vh, 620px);
@@ -2142,6 +2154,7 @@ table.matrix th.matrix-path-node-end {
     display: none;
 }
 
+/* Resumen de componentes y panel desplegable del resultado. */
 .result-heading {
     margin-bottom: 23px;
 }
@@ -2205,6 +2218,7 @@ table.matrix th.matrix-path-node-end {
     margin: -8px 0 14px;
 }
 
+/* La caja permanece en el DOM para animar su apertura y cierre. */
 .result-original-box {
     max-height: 0;
     overflow: hidden;
@@ -2493,10 +2507,12 @@ table.matrix th.matrix-path-node-end {
     font-size: 9px;
 }
 
+/* Alinea la acción final tras el listado de componentes. */
 .result-grid + .btn-row {
     justify-content: flex-end;
 }
 
+/* Adaptación del editor y los resultados a pantallas pequeñas. */
 @media (max-width: 760px) {
     .topbar {
         flex-direction: row;

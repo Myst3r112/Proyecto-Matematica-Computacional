@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es">
     <head>
+        <!-- Metadatos de idioma, vista móvil, identidad y tipografías. -->
         <meta charset="UTF-8" />
         <meta
             name="viewport"
@@ -21,6 +22,7 @@
         <link rel="stylesheet" href="assets/css/styles.css" />
     </head>
     <body>
+        <!-- Encabezado de marca compartido entre las pantallas. -->
         <header class="topbar">
             <div class="brand">
                 <span class="brand-mark-frame">
@@ -40,8 +42,10 @@
             />
         </header>
 
+        <!-- app.js monta aquí la pantalla activa y anuncia sus cambios. -->
         <main id="app" aria-live="polite"></main>
 
+        <!-- Dependencias visuales cargadas antes del código de la aplicación. -->
         <script
             defer
             src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js"
@@ -54,6 +58,7 @@
             defer
             src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js"
         ></script>
+        <!-- graph.js define la API que utiliza app.js. -->
         <script defer src="assets/js/graph.js"></script>
         <script defer src="assets/js/app.js"></script>
     </body>

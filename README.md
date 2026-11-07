@@ -24,13 +24,21 @@ intermedios y naranja para la nueva relación de alcanzabilidad y su destino.
 En las visualizaciones, una pareja de aristas opuestas se dibuja como una
 sola conexión con flechas en ambos extremos. Las conexiones entre componentes
 se ocultan al presentar los grupos, para que cada componente se aprecie por
-separado.
+separado. En el resumen y en la última etapa se muestra un ciclo simple
+dirigido que recorre todos los nodos de cada componente no trivial, usando
+únicamente aristas originales. Así, cada nodo del ciclo tiene una entrada y
+una salida. Las componentes unitarias aisladas se muestran sin aristas.
 
-Las redes aleatorias garantizan que cada vértice tenga al menos una arista
-entrante o saliente. En el modo manual no se puede iniciar el análisis si
-algún vértice está aislado. En los resultados, un panel desplegable permite
-consultar el grafo original completo junto a una vista por etapas: matriz de
-adyacencia, matriz de caminos, matriz ordenada y componentes detectadas.
+Las redes aleatorias se construyen con componentes no triviales que contienen
+un ciclo dirigido por todos sus nodos; las conexiones entre componentes solo
+avanzan en un sentido para conservar la partición. En el modo manual se
+permiten nodos aislados, que se consideran componentes unitarias. Antes de
+analizar, se verifica que cada componente de varios nodos tenga un ciclo que
+recorra a todos sus integrantes usando aristas originales; si no existe, se
+indican los grupos que deben ajustarse. En los resultados, un panel
+desplegable permite consultar el grafo original completo junto a una vista
+por etapas: matriz de adyacencia, matriz de caminos, matriz ordenada y
+componentes detectadas.
 
 ## Estructura del Directorio
 

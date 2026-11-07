@@ -7,6 +7,7 @@ const {
     obtener_nombres_red,
     generar_matriz_aleatoria,
     calcular_datos_algoritmo,
+    crear_matriz_ciclos_maximos,
     crear_mapa_colores_componentes,
     obtener_color_componente,
 } = window.CoonectowskiGraph;
@@ -67,27 +68,6 @@ function ejecutar_algoritmo() {
     estado.pasos = pasos;
 }
 
-// Encuentra los nodos sin aristas entrantes ni salientes.
-function obtener_nodos_aislados(matriz) {
-    const tiene_conexion = new Array(matriz.length).fill(false);
-
-    matriz.forEach((fila, origen) => {
-        fila.forEach((hay_arista, destino) => {
-            if (!hay_arista) return;
-            tiene_conexion[origen] = true;
-            tiene_conexion[destino] = true;
-        });
-    });
-
-    return tiene_conexion.reduce(
-        (nodos_aislados, tiene_arista, nodo) => {
-            if (!tiene_arista) nodos_aislados.push(nodo);
-            return nodos_aislados;
-        },
-        [],
-    );
-}
-
 // Aplica al componente el orden definido para los nodos.
 function ordenar_nodos_componente(componente, orden_nodos) {
     const nodos_componente = new Set(componente);
@@ -102,20 +82,25 @@ function ordenar_nodos_componente(componente, orden_nodos) {
     return [...nodos_ordenados, ...nodos_pendientes];
 }
 
-// Crea una matriz visual con un ciclo por cada componente.
-function crear_matriz_ciclos_componentes(componentes, cantidad_nodos) {
-    const matriz = crear_matriz_vacia(cantidad_nodos);
+// Ordena visualmente los nodos siguiendo el ciclo seleccionado.
+function ordenar_nodos_segun_ciclo(matriz_ciclo, componente) {
+    const inicio = componente.find((nodo) =>
+        matriz_ciclo[nodo].some(Boolean),
+    );
+    if (inicio === undefined) return [...componente];
 
-    componentes.forEach((componente) => {
-        if (componente.length < 2) return;
+    const nodos_ciclo = [];
+    let actual = inicio;
+    while (!nodos_ciclo.includes(actual)) {
+        nodos_ciclo.push(actual);
+        actual = matriz_ciclo[actual].findIndex(Boolean);
+        if (actual === -1) break;
+    }
 
-        componente.forEach((nodo, indice) => {
-            const siguiente_nodo = componente[(indice + 1) % componente.length];
-            matriz[nodo][siguiente_nodo] = 1;
-        });
-    });
-
-    return matriz;
+    return [
+        ...nodos_ciclo,
+        ...componente.filter((nodo) => !nodos_ciclo.includes(nodo)),
+    ];
 }
 
 // Indica a qué componente pertenece cada nodo.
@@ -833,8 +818,6 @@ function renderizar_pantalla_construccion() {
     const n = estado.n;
     const conexiones = obtener_conexiones_manuales();
     const cantidad_conexiones = conexiones.cantidad;
-    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
-    const mensaje_aislados = obtener_mensaje_nodos_aislados(nodos_aislados);
 
     return `
         <section class="screen">
@@ -868,24 +851,13 @@ function renderizar_pantalla_construccion() {
                         ${conexiones.html}
                     </aside>
                 </div>
-                <p class="validation-message" data-isolated-message role="alert" ${nodos_aislados.length ? "" : "hidden"}>${mensaje_aislados}</p>
+                <p class="validation-message" data-cycle-message role="alert" hidden></p>
                 <div class="workspace-actions">
                     <button class="btn btn-ghost" data-action="restart">Volver</button>
-                    <button class="btn btn-primary" data-action="confirm-manual" ${nodos_aislados.length ? "disabled" : ""}>Encontrar comunidades <span class="button-arrow">↗</span></button>
+                    <button class="btn btn-primary" data-action="confirm-manual">Encontrar comunidades <span class="button-arrow">↗</span></button>
                 </div>
             </div>
         </section>`;
-}
-
-// Explica qué nodos aislados deben conectarse para continuar.
-function obtener_mensaje_nodos_aislados(nodos_aislados) {
-    if (nodos_aislados.length === 0) return "";
-
-    const nombres = nodos_aislados
-        .map((nodo) => estado.nombres[nodo])
-        .join(", ");
-    const etiqueta = nodos_aislados.length === 1 ? "no tiene" : "no tienen";
-    return `${nombres} ${etiqueta} conexiones. Conecta cada nodo para continuar.`;
 }
 
 // Construye la lista de conexiones y su resumen.
@@ -914,7 +886,7 @@ function obtener_conexiones_manuales() {
 // Indica el origen o destino que debe seleccionarse en el editor.
 function obtener_texto_indicacion_manual() {
     return estado.nodo_seleccionado_arista === null
-        ? "Toca primero el nodo de origen y luego el nodo de destino"
+        ? "Toca el origen y luego el destino. Cada grupo conectado debe cerrar un ciclo."
         : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> es el origen · elige el destino`;
 }
 
@@ -977,21 +949,8 @@ function actualizar_interfaz_construccion(instancia) {
     resumen.innerHTML = `<span><b>${estado.n}</b> NODOS</span><span class="stat-divider"></span><span><b>${conexiones.cantidad}</b> ARISTAS DIRIGIDAS</span>`;
     panel_conexiones.innerHTML = conexiones.html;
 
-    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
-    const mensaje_aislados = document.querySelector(
-        "[data-isolated-message]",
-    );
-    const boton_confirmar = document.querySelector(
-        '[data-action="confirm-manual"]',
-    );
-    if (mensaje_aislados) {
-        mensaje_aislados.textContent =
-            obtener_mensaje_nodos_aislados(nodos_aislados);
-        mensaje_aislados.hidden = nodos_aislados.length === 0;
-    }
-    if (boton_confirmar) {
-        boton_confirmar.disabled = nodos_aislados.length > 0;
-    }
+    const mensaje_ciclo = document.querySelector("[data-cycle-message]");
+    if (mensaje_ciclo) mensaje_ciclo.hidden = true;
 
     actualizar_grafo_manual(instancia);
 }
@@ -1417,6 +1376,9 @@ function renderizar_tarjetas_componentes(componentes = estado.componentes) {
     return componentes
         .map((componente, indice_componente) => {
             const color = obtener_color_componente(indice_componente);
+            const nodos_componente = componente
+                .map((indice_nodo) => indice_nodo + 1)
+                .join(", ");
             const integrantes = componente
                 .map(
                     (indice_nodo) =>
@@ -1432,6 +1394,7 @@ function renderizar_tarjetas_componentes(componentes = estado.componentes) {
                         <span class="swatch" style="background: ${color}"></span>
                         Componente ${indice_componente + 1}
                     </h3>
+                    <p class="component-set"><i>V</i><sub>${indice_componente + 1}</sub> = {${nodos_componente}}</p>
                     <p>${componente.length} ${etiqueta_nodos}</p>
                     <div class="member-chips">${integrantes}</div>
                 </article>`;
@@ -1487,7 +1450,7 @@ function obtener_etapas_analisis_original() {
         {
             titulo: "Componentes fuertemente conexas",
             descripcion:
-                "Los bloques diagonales de unos identifican los grupos cuyos nodos se alcanzan mutuamente.",
+                "Los bloques identifican los grupos cuyos nodos se alcanzan mutuamente. El grafo muestra el ciclo dirigido más largo posible de cada grupo.",
             matriz: paso_componentes.matriz,
             orden_filas: paso_componentes.orden_filas,
             orden_columnas: paso_componentes.orden_columnas,
@@ -1596,16 +1559,20 @@ function actualizar_grafo_original_por_etapa(indice, etapas) {
               ordenar_nodos_componente(componente, etapa.orden_filas),
           )
         : null;
+    const matriz_ciclos = componentes
+        ? crear_matriz_ciclos_maximos(estado.matriz, componentes_ordenados)
+        : estado.matriz;
+    const componentes_ciclo = componentes_ordenados?.map((componente) =>
+        ordenar_nodos_segun_ciclo(matriz_ciclos, componente),
+    );
     const mapa_colores = componentes
         ? crear_mapa_colores_componentes(componentes_ordenados, estado.n)
         : null;
     const opciones = {
         ...configuraciones_grafos[indice_grafo],
-        matriz: componentes
-            ? crear_matriz_ciclos_componentes(componentes_ordenados, estado.n)
-            : estado.matriz,
+        matriz: matriz_ciclos,
         mapa_colores,
-        componentes: componentes_ordenados,
+        componentes: componentes_ciclo ?? null,
         organizar_componentes: Boolean(componentes),
     };
     configuraciones_grafos[indice_grafo] = opciones;
@@ -1649,7 +1616,7 @@ function actualizar_grafo_original_por_etapa(indice, etapas) {
     lienzo.setAttribute(
         "aria-label",
         componentes
-            ? `Componentes fuertemente conexas: ${componentes.length} grupos representados como ciclos separados`
+            ? `Componentes fuertemente conexas: ciclo dirigido máximo en cada uno de los ${componentes.length} grupos`
             : `Grafo dirigido con ${estado.n} nodos`,
     );
     ejecutar_distribucion(instancia, lienzo, opciones);
@@ -1709,9 +1676,12 @@ function renderizar_pantalla_resultado() {
     const componentes_ordenados = estado.componentes.map((componente) =>
         ordenar_nodos_componente(componente, orden_nodos),
     );
-    const matriz_ciclos = crear_matriz_ciclos_componentes(
+    const matriz_ciclos = crear_matriz_ciclos_maximos(
+        estado.matriz,
         componentes_ordenados,
-        n,
+    );
+    const componentes_ciclo = componentes_ordenados.map((componente) =>
+        ordenar_nodos_segun_ciclo(matriz_ciclos, componente),
     );
     const mapa_colores = crear_mapa_colores_componentes(
         estado.componentes,
@@ -1749,10 +1719,10 @@ function renderizar_pantalla_resultado() {
               matriz: matriz_ciclos,
               nombres: estado.nombres,
               mapa_colores,
-              componentes: componentes_ordenados,
+              componentes: componentes_ciclo,
               organizar_componentes: true,
           })}
-          <p class="component-cycle-caption">Vista simplificada: un ciclo de alcance por grupo. El grafo original conserva las aristas directas.</p>
+          <p class="component-cycle-caption">Cada nodo del ciclo tiene una entrada y una salida, ambas presentes en la matriz original. Los nodos fuera del ciclo siguen en su componente, sin aristas en esta vista.</p>
         </div>
         <div>${tarjetas_componentes}</div>
       </div>
@@ -1907,17 +1877,35 @@ function quitar_conexion(boton) {
     actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
 }
 
-// Valida la red manual e inicia el análisis si es válida.
+// Inicia el análisis si cada componente no aislada admite un ciclo completo.
 function confirmar_red_manual() {
-    const nodos_aislados = obtener_nodos_aislados(estado.matriz);
-    if (nodos_aislados.length > 0) {
-        const mensaje_aislados = document.querySelector(
-            "[data-isolated-message]",
-        );
-        if (mensaje_aislados) {
-            mensaje_aislados.textContent =
-                obtener_mensaje_nodos_aislados(nodos_aislados);
-            mensaje_aislados.hidden = false;
+    const { componentes } = calcular_datos_algoritmo(estado.matriz, false);
+    const matriz_ciclos = crear_matriz_ciclos_maximos(
+        estado.matriz,
+        componentes,
+    );
+    const componentes_sin_ciclo = componentes.filter(
+        (componente) =>
+            componente.length > 1 &&
+            componente.filter((nodo) =>
+                matriz_ciclos[nodo].some(Boolean),
+            ).length !== componente.length,
+    );
+
+    if (componentes_sin_ciclo.length > 0) {
+        const grupos = componentes_sin_ciclo
+            .map(
+                (componente) =>
+                    `{${componente
+                        .map((nodo) => nodo + 1)
+                        .sort((nodo_a, nodo_b) => nodo_a - nodo_b)
+                        .join(", ")}}`,
+            )
+            .join("; ");
+        const mensaje = document.querySelector("[data-cycle-message]");
+        if (mensaje) {
+            mensaje.textContent = `Las componentes ${grupos} son fuertemente conexas, pero la matriz original no contiene un único ciclo que pase por todos sus nodos. Ajusta las aristas para continuar sin inventar conexiones.`;
+            mensaje.hidden = false;
         }
         return;
     }

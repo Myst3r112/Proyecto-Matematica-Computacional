@@ -2471,6 +2471,18 @@ table.matrix th.matrix-path-node-end {
     font-size: 9px;
 }
 
+.community-card .component-set {
+    grid-column: 1 / -1;
+    margin-top: 7px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+}
+
+.component-set sub {
+    font-size: 0.72em;
+}
+
 .member-chips {
     grid-column: 1 / -1;
     gap: 5px;

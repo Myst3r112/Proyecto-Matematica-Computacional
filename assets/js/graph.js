@@ -51,37 +51,50 @@
         return nombres_disponibles.slice(0, cantidad);
     }
 
-    // Genera aristas aleatorias y evita que haya nodos aislados.
+    // Genera componentes cíclicas y conexiones dirigidas entre ellas.
     function generar_matriz_aleatoria(cantidad) {
         validar_cantidad(cantidad);
         const matriz = crear_matriz_vacia(cantidad);
-        const probabilidad_arista = 0.12 + Math.random() * 0.28;
-
-        for (let origen = 0; origen < cantidad; origen++) {
-            for (let destino = 0; destino < cantidad; destino++) {
-                if (
-                    origen !== destino &&
-                    Math.random() < probabilidad_arista
-                ) {
-                    matriz[origen][destino] = 1;
-                }
-            }
+        const orden_nodos = Array.from({ length: cantidad }, (_, indice) => indice);
+        for (let indice = orden_nodos.length - 1; indice > 0; indice--) {
+            const aleatorio = Math.floor(Math.random() * (indice + 1));
+            [orden_nodos[indice], orden_nodos[aleatorio]] = [
+                orden_nodos[aleatorio],
+                orden_nodos[indice],
+            ];
         }
 
-        for (let nodo = 0; nodo < cantidad; nodo++) {
-            const tiene_arista_entrante = matriz.some(
-                (fila) => fila[nodo] === 1,
-            );
-            const tiene_arista_saliente = matriz[nodo].some(
-                (valor) => valor === 1,
-            );
-            if (tiene_arista_entrante || tiene_arista_saliente) continue;
+        const componentes = [];
+        let posicion = 0;
+        while (posicion < cantidad) {
+            const restantes = cantidad - posicion;
+            let tamano =
+                restantes === 3
+                    ? 3
+                    : Math.min(2 + Math.floor(Math.random() * 3), restantes);
+            if (restantes - tamano === 1) tamano--;
+            componentes.push(orden_nodos.slice(posicion, posicion + tamano));
+            posicion += tamano;
+        }
 
-            const otro_nodo = (nodo + 1) % cantidad;
-            if (Math.random() < 0.5) {
-                matriz[nodo][otro_nodo] = 1;
-            } else {
-                matriz[otro_nodo][nodo] = 1;
+        componentes.forEach((componente) => {
+            componente.forEach((origen, indice) => {
+                const destino = componente[(indice + 1) % componente.length];
+                matriz[origen][destino] = 1;
+            });
+        });
+
+        for (let indice_origen = 0; indice_origen < componentes.length; indice_origen++) {
+            for (
+                let indice_destino = indice_origen + 1;
+                indice_destino < componentes.length;
+                indice_destino++
+            ) {
+                componentes[indice_origen].forEach((origen) => {
+                    componentes[indice_destino].forEach((destino) => {
+                        if (Math.random() < 0.2) matriz[origen][destino] = 1;
+                    });
+                });
             }
         }
 
@@ -170,6 +183,148 @@
                 componente_b.length - componente_a.length ||
                 componente_a[0] - componente_b[0],
         );
+    }
+
+    // Conserva en cada componente el ciclo simple dirigido más largo.
+    function crear_matriz_ciclos_maximos(matriz, componentes) {
+        validar_matriz(matriz);
+        if (!Array.isArray(componentes)) {
+            throw new TypeError("Las componentes deben estar en una lista.");
+        }
+
+        const nodos_incluidos = new Set();
+        componentes.forEach((componente) => {
+            const nodos_componente = new Set();
+            if (!Array.isArray(componente) || componente.length === 0) {
+                throw new TypeError(
+                    "Las componentes deben particionar los nodos de la matriz.",
+                );
+            }
+            componente.forEach((nodo) => {
+                if (
+                    !Number.isInteger(nodo) ||
+                    nodo < 0 ||
+                    nodo >= matriz.length ||
+                    nodos_incluidos.has(nodo) ||
+                    nodos_componente.has(nodo)
+                ) {
+                    throw new TypeError(
+                        "Las componentes deben particionar los nodos de la matriz.",
+                    );
+                }
+                nodos_componente.add(nodo);
+                nodos_incluidos.add(nodo);
+            });
+        });
+        if (nodos_incluidos.size !== matriz.length) {
+            throw new TypeError(
+                "Las componentes deben incluir todos los nodos de la matriz.",
+            );
+        }
+
+        const matriz_ciclos = Array.from({ length: matriz.length }, () =>
+            Array(matriz.length).fill(0),
+        );
+
+        componentes.forEach((componente) => {
+            const ciclo = encontrar_ciclo_simple_mas_largo(matriz, componente);
+            ciclo.forEach((origen, indice) => {
+                const destino = ciclo[(indice + 1) % ciclo.length];
+                matriz_ciclos[origen][destino] = 1;
+            });
+        });
+
+        return matriz_ciclos;
+    }
+
+    // Busca el ciclo simple más largo con programación dinámica por subconjuntos.
+    function encontrar_ciclo_simple_mas_largo(matriz, componente) {
+        if (!Array.isArray(componente)) {
+            throw new TypeError("Cada componente debe ser una lista de nodos.");
+        }
+
+        const cantidad = componente.length;
+        if (cantidad < 2) return [];
+
+        let mejor_ciclo = [];
+        let mejor_secuencia = [];
+        const cantidad_mascaras = 1 << cantidad;
+        const comparar_secuencias = (secuencia_a, secuencia_b) => {
+            for (let indice = 0; indice < secuencia_a.length; indice++) {
+                if (secuencia_a[indice] !== secuencia_b[indice]) {
+                    return secuencia_a[indice] - secuencia_b[indice];
+                }
+            }
+            return 0;
+        };
+
+        for (let inicio = 0; inicio < cantidad; inicio++) {
+            const estados = Array.from(
+                { length: cantidad_mascaras },
+                () => new Map(),
+            );
+            const mascara_inicial = 1 << inicio;
+            estados[mascara_inicial].set(inicio, [inicio]);
+
+            for (
+                let mascara = mascara_inicial;
+                mascara < cantidad_mascaras;
+                mascara++
+            ) {
+                estados[mascara].forEach((camino, ultimo) => {
+                    if (
+                        camino.length > 1 &&
+                        matriz[componente[ultimo]][componente[inicio]]
+                    ) {
+                        const ciclo = camino.map(
+                            (indice) => componente[indice],
+                        );
+                        if (
+                            ciclo.length > mejor_ciclo.length ||
+                            (ciclo.length === mejor_ciclo.length &&
+                                comparar_secuencias(
+                                    camino,
+                                    mejor_secuencia,
+                                ) < 0)
+                        ) {
+                            mejor_ciclo = ciclo;
+                            mejor_secuencia = camino;
+                        }
+                    }
+
+                    for (
+                        let siguiente = inicio + 1;
+                        siguiente < cantidad;
+                        siguiente++
+                    ) {
+                        const siguiente_bit = 1 << siguiente;
+                        if (mascara & siguiente_bit) continue;
+                        if (
+                            !matriz[componente[ultimo]][componente[siguiente]]
+                        ) {
+                            continue;
+                        }
+
+                        const nueva_mascara = mascara | siguiente_bit;
+                        const nuevo_camino = [...camino, siguiente];
+                        const camino_existente =
+                            estados[nueva_mascara].get(siguiente);
+                        if (
+                            !camino_existente ||
+                            comparar_secuencias(nuevo_camino, camino_existente) <
+                                0
+                        ) {
+                            estados[nueva_mascara].set(
+                                siguiente,
+                                nuevo_camino,
+                            );
+                        }
+                    }
+                });
+            }
+        }
+
+        return mejor_ciclo;
     }
 
     // Registra los pasos con una copia de la matriz en el estado actual.
@@ -499,6 +654,7 @@
         obtener_nombres_red,
         generar_matriz_aleatoria,
         calcular_datos_algoritmo,
+        crear_matriz_ciclos_maximos,
         crear_mapa_colores_componentes,
         obtener_color_componente,
     });

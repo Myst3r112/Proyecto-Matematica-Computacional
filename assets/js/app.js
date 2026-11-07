@@ -1653,10 +1653,11 @@ function actualizar_etapa_analisis_original(indice) {
     if (!contenido || !boton_anterior || !boton_siguiente) return;
 
     contenido.innerHTML = renderizar_etapa_analisis_original(indice, etapas);
-    // Solo el cambio entre las etapas 3 y 4 reorganiza el grafo.
+    // Al entrar o salir de la etapa 4 cambia entre el grafo y sus ciclos.
+    const indice_etapa_componentes = etapas.length - 1;
     if (
-        (indice_anterior === 2 && indice === 3) ||
-        (indice_anterior === 3 && indice === 2)
+        indice_anterior === indice_etapa_componentes ||
+        indice === indice_etapa_componentes
     ) {
         actualizar_grafo_original_por_etapa(indice, etapas);
     }

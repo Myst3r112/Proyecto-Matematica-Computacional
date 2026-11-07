@@ -150,6 +150,7 @@ function crear_datos_aristas(matriz, mapa_colores, componentes) {
             const vuelta = Boolean(matriz[columna][fila]);
             if (!ida && !vuelta) continue;
 
+            // Una sola arista visual representa ambos sentidos si existen.
             const origen = ida ? fila : columna;
             const destino = ida ? columna : fila;
             const bidireccional = ida && vuelta;
@@ -489,6 +490,7 @@ function posicionar_grafos() {
         instancias_grafos.push(instancia);
         ejecutar_distribucion(instancia, lienzo, opciones);
 
+        // Los toques editan la red manual o muestran el nombre del nodo.
         instancia.on("tap", "node", (evento) => {
             const nodo = evento.target;
             lienzo

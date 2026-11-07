@@ -44,6 +44,7 @@ body {
 }
 
 body {
+    /* Luces suaves para dar profundidad sin competir con el contenido. */
     background-image:
         radial-gradient(
             circle at 12% 18%,
@@ -1353,6 +1354,7 @@ svg.graph {
     overflow: visible;
 }
 
+/* Anima la aparición de aristas y la respuesta al pasar sobre un nodo. */
 svg.graph line {
     transition:
         stroke 0.3s ease,
@@ -2283,6 +2285,7 @@ table.matrix th.matrix-path-node-end {
     margin-bottom: 13px;
 }
 
+/* Pestañas y contenido del análisis detallado de cada etapa. */
 .original-analysis-tabs {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2802,6 +2805,7 @@ table.matrix th.matrix-path-node-end {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    /* Conserva las transiciones casi instantáneas si el usuario las reduce. */
     *,
     *::before,
     *::after {

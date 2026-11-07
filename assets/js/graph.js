@@ -56,6 +56,8 @@
         validar_cantidad(cantidad);
         const matriz = crear_matriz_vacia(cantidad);
         const orden_nodos = Array.from({ length: cantidad }, (_, indice) => indice);
+
+        // Fisher–Yates mezcla los nodos antes de distribuirlos en grupos.
         for (let indice = orden_nodos.length - 1; indice > 0; indice--) {
             const aleatorio = Math.floor(Math.random() * (indice + 1));
             [orden_nodos[indice], orden_nodos[aleatorio]] = [
@@ -66,6 +68,8 @@
 
         const componentes = [];
         let posicion = 0;
+
+        // Se forman grupos de varios nodos para garantizar ciclos no triviales.
         while (posicion < cantidad) {
             const restantes = cantidad - posicion;
             let tamano =
@@ -77,6 +81,7 @@
             posicion += tamano;
         }
 
+        // Cada grupo recibe un ciclo que conecta a todos sus integrantes.
         componentes.forEach((componente) => {
             componente.forEach((origen, indice) => {
                 const destino = componente[(indice + 1) % componente.length];
@@ -84,6 +89,7 @@
             });
         });
 
+        // Las aristas entre grupos avanzan en un sentido y no los fusionan.
         for (let indice_origen = 0; indice_origen < componentes.length; indice_origen++) {
             for (
                 let indice_destino = indice_origen + 1;
@@ -166,6 +172,7 @@
         );
         const componentes = [];
 
+        // La alcanzabilidad mutua con un representante identifica cada grupo.
         while (pendientes.size > 0) {
             const origen = pendientes.values().next().value;
             const componente = [...pendientes].filter(
@@ -249,6 +256,8 @@
         let mejor_ciclo = [];
         let mejor_secuencia = [];
         const cantidad_mascaras = 1 << cantidad;
+
+        // Compara rutas equivalentes para obtener un resultado determinista.
         const comparar_secuencias = (secuencia_a, secuencia_b) => {
             for (let indice = 0; indice < secuencia_a.length; indice++) {
                 if (secuencia_a[indice] !== secuencia_b[indice]) {
@@ -258,6 +267,7 @@
             return 0;
         };
 
+        // Fijar el inicio evita evaluar varias rotaciones del mismo ciclo.
         for (let inicio = 0; inicio < cantidad; inicio++) {
             const estados = Array.from(
                 { length: cantidad_mascaras },
@@ -266,6 +276,7 @@
             const mascara_inicial = 1 << inicio;
             estados[mascara_inicial].set(inicio, [inicio]);
 
+            // Cada estado extiende una ruta simple y comprueba si cierra ciclo.
             for (
                 let mascara = mascara_inicial;
                 mascara < cantidad_mascaras;
@@ -366,6 +377,7 @@
         const pendientes = [origen];
         const predecesores = new Map();
 
+        // La pila ejecuta DFS y los predecesores permiten reconstruir rutas.
         while (pendientes.length > 0) {
             const actual = pendientes.pop();
             const destinos = matriz[actual]
@@ -525,12 +537,14 @@
             registrar_pasos,
         );
 
+        // Registra la matriz inicial antes de añadir la alcanzabilidad propia.
         registrar_paso({
             fase: "amistades",
             tipo: "amistades",
             titulo: "Matriz de adyacencia",
         });
 
+        // La diagonal representa que cada nodo se alcanza a sí mismo.
         for (let nodo = 0; nodo < cantidad; nodo++) {
             matriz_caminos[nodo][nodo] = 1;
             registrar_paso({
@@ -541,6 +555,7 @@
             });
         }
 
+        // Recorre el grafo desde cada origen para completar los caminos.
         for (let origen = 0; origen < cantidad; origen++) {
             registrar_caminos_desde_origen(
                 matriz,
@@ -556,12 +571,14 @@
             titulo: "Matriz de caminos completa",
         });
 
+        // Agrupa por alcanzabilidad mutua y calcula el orden de presentación.
         const componentes = detectar_componentes_fuertemente_conexas(
             matriz_caminos,
         );
         const orden = crear_orden_filas(matriz_caminos);
         ordenar_componentes_por_filas(componentes, orden);
 
+        // Estos pasos explican el orden y las SCC ya calculadas.
         if (registrar_pasos) {
             registrar_pasos_ordenamiento(
                 matriz_caminos,

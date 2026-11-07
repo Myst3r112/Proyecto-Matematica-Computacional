@@ -548,7 +548,7 @@
         for (let nodo = 0; nodo < cantidad; nodo++) {
             matriz_caminos[nodo][nodo] = 1;
             registrar_paso({
-                fase: "alcance",
+                fase: "amistades",
                 tipo: "diagonal",
                 nodo_actual: nodo,
                 titulo: `Agregar la diagonal del nodo ${nodo + 1}`,

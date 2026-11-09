@@ -31,11 +31,11 @@ una salida. Las componentes unitarias aisladas se muestran sin aristas.
 
 Las redes aleatorias se construyen con componentes no triviales que contienen
 un ciclo dirigido por todos sus nodos; las conexiones entre componentes solo
-avanzan en un sentido para conservar la partición. En el modo manual se
-permiten nodos aislados, que se consideran componentes unitarias. Antes de
-analizar, se verifica que cada componente de varios nodos tenga un ciclo que
-recorra a todos sus integrantes usando aristas originales; si no existe, se
-indican los grupos que deben ajustarse. En los resultados, un panel
+avanzan en un sentido para conservar la partición. En el modo manual, cada
+nodo debe tener al menos una conexión entrante o saliente. Antes de analizar,
+se verifica que cada componente de varios nodos tenga un ciclo que recorra a
+todos sus integrantes usando aristas originales; si no existe, se indican los
+grupos que deben ajustarse. En los resultados, un panel
 desplegable permite consultar el grafo original completo junto a una vista
 por etapas: matriz de adyacencia, matriz de caminos, matriz ordenada y
 componentes detectadas.

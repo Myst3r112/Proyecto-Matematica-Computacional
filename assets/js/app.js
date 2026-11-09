@@ -888,7 +888,7 @@ function obtener_conexiones_manuales() {
 // Indica el origen o destino que debe seleccionarse en el editor.
 function obtener_texto_indicacion_manual() {
     return estado.nodo_seleccionado_arista === null
-        ? "Toca el origen y luego el destino. Cada grupo conectado debe cerrar un ciclo."
+        ? "Toca el origen y luego el destino. Cada nodo debe tener una conexión y cada grupo conectado debe cerrar un ciclo."
         : `<b>${estado.nombres[estado.nodo_seleccionado_arista]}</b> es el origen · elige el destino`;
 }
 
@@ -1880,8 +1880,31 @@ function quitar_conexion(boton) {
     actualizar_interfaz_construccion(obtener_instancia_grafo_manual());
 }
 
-// Inicia el análisis si cada componente no aislada admite un ciclo completo.
+// Inicia el análisis si no hay nodos aislados y cada componente admite un ciclo completo.
 function confirmar_red_manual() {
+    const nodos_aislados = estado.matriz.reduce((aislados, fila, nodo) => {
+        const tiene_conexion_saliente = fila.some(Boolean);
+        const tiene_conexion_entrante = estado.matriz.some(
+            (fila_origen) => fila_origen[nodo],
+        );
+        if (!tiene_conexion_saliente && !tiene_conexion_entrante) {
+            aislados.push(nodo);
+        }
+        return aislados;
+    }, []);
+
+    if (nodos_aislados.length > 0) {
+        const nombres = nodos_aislados
+            .map((nodo) => estado.nombres[nodo])
+            .join(", ");
+        const mensaje = document.querySelector("[data-cycle-message]");
+        if (mensaje) {
+            mensaje.textContent = `Todos los nodos deben tener al menos una conexión entrante o saliente. Agrega una conexión para: ${nombres}.`;
+            mensaje.hidden = false;
+        }
+        return;
+    }
+
     const { componentes } = calcular_datos_algoritmo(estado.matriz, false);
     const matriz_ciclos = crear_matriz_ciclos_maximos(
         estado.matriz,

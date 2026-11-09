@@ -1725,7 +1725,6 @@ function renderizar_pantalla_resultado() {
               componentes: componentes_ciclo,
               organizar_componentes: true,
           })}
-          <p class="component-cycle-caption">Cada nodo del ciclo tiene una entrada y una salida, ambas presentes en la matriz original. Los nodos fuera del ciclo siguen en su componente, sin aristas en esta vista.</p>
         </div>
         <div>${tarjetas_componentes}</div>
       </div>
